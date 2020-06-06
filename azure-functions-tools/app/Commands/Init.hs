@@ -4,13 +4,13 @@ module Commands.Init
 where
 
 import           Control.Monad       (when)
+import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
 import           Options.Applicative
-import           System.Directory
-import           System.FilePath     ((</>))
+import           System.Directory    as Dir
+import           System.FilePath     (takeFileName, (</>))
 import qualified Templates.IO        as Tpl
-
-import qualified Templates.Project as Prj
+import qualified Templates.Project   as Prj
 
 data InitOptions = InitOptions
   { scriptRoot     :: FilePath
@@ -34,13 +34,18 @@ initCommand = runInitCommand <$> initOptionsParser
 
 runInitCommand :: InitOptions -> IO ()
 runInitCommand opts = do
+  projectRoot <- Dir.makeAbsolute (scriptRoot opts)
+  let name = takeFileName projectRoot
+
   let execPath = "boo"
-  let workerDir = scriptRoot opts </> "workers" </> "haskell"
+  let workerDir = projectRoot </> "workers" </> "haskell"
   createDirectoryIfMissing True workerDir
 
-  Tpl.writeFileIfNotExist (scriptRoot opts </> "host.json") Prj.hostJson []
-  Tpl.writeFileIfNotExist (workerDir </> "worker.config.json") Prj.workerConfigJson [("execPath", execPath)]
+  Tpl.writeFileIfNotExist (projectRoot </> "host.json") Prj.hostJson []
+  -- Tpl.writeFileIfNotExist (workerDir </> "worker.config.json") Prj.workerConfigJson [("execPath", execPath)]
+  Tpl.writeFileIfNotExist (projectRoot </> "package.yaml") Prj.packageYaml [("name", Text.pack name)]
 
-  undefined
+  Tpl.writeFile (projectRoot </> "src" </> "Main.hs") Prj.mainHs []
+
 
 
