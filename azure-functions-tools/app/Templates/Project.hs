@@ -3,11 +3,14 @@
 module Templates.Project
 where
 
-import Data.Text         (Text)
-import Text.RawString.QQ
+import           Data.Either.Combinators (fromRight')
+import           Data.Text               (Text)
+import           Text.Glabrous           (Template)
+import qualified Text.Glabrous           as Tpl
+import           Text.RawString.QQ
 
-hostJson :: Text
-hostJson = [r|
+hostJson :: Template
+hostJson = fromRight' $ Tpl.fromText [r|
   {
       "version": "2.0",
       "extensionBundle": {
@@ -17,8 +20,8 @@ hostJson = [r|
   }
 |]
 
-workerConfigJson :: Text
-workerConfigJson = [r|
+workerConfigJson :: Template
+workerConfigJson = fromRight' $ Tpl.fromText [r|
   {
       "description": {
           "arguments": [
@@ -26,20 +29,21 @@ workerConfigJson = [r|
           ],
           "defaultExecutablePath": "{{ execPath }}",
           "extensions": [
-              ".swift"
+              ".hs"
           ],
-          "language": "swift"
+          "language": "haskell"
       }
   }
 |]
 
-localSettingsJson :: Text
-localSettingsJson = [r|
+localSettingsJson :: Template
+localSettingsJson = fromRight' $ Tpl.fromText [r|
   {
       "IsEncrypted": false,
       "Values": {
-          "FUNCTIONS_WORKER_RUNTIME": "swift",
+          "FUNCTIONS_WORKER_RUNTIME": "haskell",
           "languageWorkers:workersDirectory": "workers"
       }
   }
 |]
+

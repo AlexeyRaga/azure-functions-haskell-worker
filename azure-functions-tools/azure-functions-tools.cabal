@@ -18,8 +18,13 @@ executable azure-functions-tools
   hs-source-dirs:       app
   default-language:     Haskell2010
   main-is:              Main.hs
-  other-modules:        Templates.Project
+  other-modules:        Commands.Init
+                        Templates.IO
+                        Templates.Project
   build-depends:        base                  >= 4.12   && < 4.13
+                      , directory
+                      , either
+                      , filepath
                       , glabrous              >= 2.0.2  && < 3
                       , optparse-applicative
                       , raw-strings-qq        >= 1.1    && < 2
