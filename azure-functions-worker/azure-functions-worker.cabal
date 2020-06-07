@@ -23,15 +23,16 @@ common config
 library
   import:               config
   hs-source-dirs:       src
-  exposed-modules:      MyLib
-                        Azure.Functions.Worker
+  exposed-modules:      Azure.Functions.Worker
 
   autogen-modules:      Proto.FunctionRpc
                         Proto.FunctionRpc_Fields
                         Proto.Identity.ClaimsIdentityRpc
                         Proto.Shared.NullableTypes
 
-  other-modules:        Azure.Functions.Internal.Options
+  other-modules:        Azure.Functions.Commands.Init
+                        Azure.Functions.Commands.Run
+                        Azure.Functions.Internal.Templates
                         Proto.FunctionRpc
                         Proto.FunctionRpc_Fields
                         Proto.Identity.ClaimsIdentityRpc
@@ -40,9 +41,13 @@ library
   build-tool-depends:   proto-lens-protoc:proto-lens-protoc
 
   build-depends:        base >=4.12 && <4.13
-                      , optparse-applicative >=0.15.1 && <0.16
+                      , directory
+                      , filepath
+                      , glabrous              >= 2.0.2  && < 3
+                      , optparse-applicative  >=0.15.1 && <0.16
                       , proto-lens-runtime
                       , proto-lens-protobuf-types
+                      , raw-strings-qq        >= 1.1    && < 2
                       , text
 
 test-suite azure-functions-test
@@ -50,5 +55,5 @@ test-suite azure-functions-test
   hs-source-dirs:       test
   type:                 exitcode-stdio-1.0
   main-is:              MyLibTest.hs
-  build-depends:        base >=4.12 && <4.13,
-                        azure-functions-worker
+  build-depends:        base >=4.12 && <4.13
+                      , azure-functions-worker

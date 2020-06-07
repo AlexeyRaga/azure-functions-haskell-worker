@@ -1,6 +1,7 @@
 module Main where
 
 import           Commands.Init       (initCommand)
+import           Commands.Run        (runCommand)
 import           Control.Monad       (join)
 import           Options.Applicative
 import qualified System.IO           as IO
@@ -14,4 +15,6 @@ main = do
 
 commands :: Parser (IO ())
 commands = hsubparser
-  ( command "init" (info initCommand idm) )
+  (  command "init" (info initCommand idm)
+  <> command "run" (info runCommand idm)
+  )

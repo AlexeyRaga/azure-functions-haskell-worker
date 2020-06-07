@@ -2,23 +2,22 @@ cabal-version:        2.4
 
 name:                 azure-functions-tools
 version:              0.0.0.0
--- synopsis:
--- description:
+synopsis:             Azure Functions: Haskell Toolset
+description:          Azure Functions: Haskell Toolset.
 -- bug-reports:
--- license:
-license-file:         LICENSE
--- author:
--- maintainer:
--- copyright:
--- category:
+license:              MIT
+author:               Alexey Raga <alexey.raga@gmail.com>
+maintainer:           Alexey Raga <alexey.raga@gmail.com>
+category:             Cloud, Tools, Azure, Serverless
 build-type:           Simple
-extra-source-files:   CHANGELOG.md
+extra-source-files:   README.md
 
 executable azure-functions-tools
   hs-source-dirs:       app
   default-language:     Haskell2010
   main-is:              Main.hs
   other-modules:        Commands.Init
+                        Commands.Run
                         Templates.IO
                         Templates.Project
   build-depends:        base                  >= 4.12   && < 4.13
@@ -27,6 +26,7 @@ executable azure-functions-tools
                       , filepath
                       , glabrous              >= 2.0.2  && < 3
                       , optparse-applicative
+                      , process
                       , raw-strings-qq        >= 1.1    && < 2
                       , text
 

@@ -1,18 +1,13 @@
 # Azure Functions Haskell Worker
 
-This is a very early work in progress.
+**[NOTE]** This is a very early work in progress.
 
-## Documentation
+Azure Functions Haskell Worker is a __library__ that runs Azure functions inside the worker process.
+This means that a "real" functions application (executable) is meant to use the worker library
+and run its `main` as `Azure.Functions.Worker.runWorker`.
 
-* <https://github.com/azure/azure-functions>
-* Contract: <https://github.com/Azure/azure-functions-language-worker-protobuf>
-* Language Extensibility: <https://github.com/Azure/azure-functions-host/wiki/Language-Extensibility>
+Worker process provides two main commands:
 
-### Examples
+- [run](src/Azure/Functions/Commands/Run.hs) is a main entry point that starts the worker and funs functions
+- [init](src/Azure/Functions/Commands/Init.hs) is a command that allows the worker process to configure itself for the Azure Functions Host. Its main responsibility is to write `worker.config.json`.
 
-* Python: <https://github.com/Azure/azure-functions-python-worker>
-* Java: <https://github.com/Azure/azure-functions-java-worker>
-
-## Contributing
-
-Contributions are welcome. Suggestions are very appreciated.

@@ -37,12 +37,8 @@ runInitCommand opts = do
   projectRoot <- Dir.makeAbsolute (scriptRoot opts)
   let name = takeFileName projectRoot
 
-  let execPath = "boo"
-  let workerDir = projectRoot </> "workers" </> "haskell"
-  createDirectoryIfMissing True workerDir
-
   Tpl.writeFileIfNotExist (projectRoot </> "host.json") Prj.hostJson []
-  -- Tpl.writeFileIfNotExist (workerDir </> "worker.config.json") Prj.workerConfigJson [("execPath", execPath)]
+
   Tpl.writeFileIfNotExist (projectRoot </> "package.yaml") Prj.packageYaml [("name", Text.pack name)]
 
   Tpl.writeFile (projectRoot </> "src" </> "Main.hs") Prj.mainHs []
