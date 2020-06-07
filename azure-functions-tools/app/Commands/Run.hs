@@ -43,7 +43,13 @@ runRunCommand opts = do
   let workerDir = projectRoot </> "workers" </> "haskell"
   createDirectoryIfMissing True workerDir
 
-  print $ "Copying executable"
+  print "Running hpack"
+  runOSCommand projectRoot "hpack"
+    [ projectRoot
+    , "--force"
+    ]
+
+  print "Copying executable"
   runOSCommand projectRoot "cabal"
     [ "run"
     , "exe:" <> name
