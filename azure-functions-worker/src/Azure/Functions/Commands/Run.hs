@@ -15,10 +15,12 @@ import           System.Environment                 (getArgs, getExecutablePath)
 import           System.FilePath                    ((</>))
 
 import Network.GRPC.Server
+import Network.Wai.Handler.Warp    (HostPreference, defaultSettings, setHost, setPort)
+import Network.Wai.Handler.WarpTLS (defaultTlsSettings, tlsSettingsMemory)
 import Proto.FunctionRpc
 
 data Options = Options
-  { host      :: String
+  { host      :: HostPreference
   , port      :: Int
   , workerId  :: String
   , requestId :: String
@@ -54,11 +56,8 @@ runCommand = runRunCommand <$> optionsParser
 
 runRunCommand :: Options -> IO ()
 runRunCommand opts = do
-  args <- getArgs
-  writeFile "/tmp/args" (show args)
-  print opts
-  writeFile "/tmp/opts" (show opts)
-  undefined
+  let settings = setPort (port opts) . setHost (host opts) $ defaultSettings
+  runGrpc defaultTlsSettings settings handlers []
 
 handlers :: [ServiceHandler]
 handlers =
