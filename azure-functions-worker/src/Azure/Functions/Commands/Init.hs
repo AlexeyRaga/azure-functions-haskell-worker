@@ -33,15 +33,19 @@ initCommand = runInitCommand <$> optionsParser
 
 runInitCommand :: Options -> IO ()
 runInitCommand opts = do
+  funcRoot    <- Dir.getCurrentDirectory
   execPath    <- getExecutablePath
   projectRoot <- Dir.makeAbsolute (scriptRoot opts)
+
   let execFileName = takeFileName execPath
 
   let workerDir = projectRoot </> "workers" </> "haskell"
-  let workerBinDir = workerDir </> "bin"
-  let workerExecPath = workerBinDir </> execFileName
+  let workerExecPath = workerDir </> execFileName
 
-  createDirectoryIfMissing True workerBinDir
+  createDirectoryIfMissing True workerDir
+
+  Dir.copyFileWithMetadata "host.json" (projectRoot </> "host.json")
+  Dir.copyFileWithMetadata "local.settings.json" (projectRoot </> "local.settings.json")
 
   Dir.copyFileWithMetadata execPath workerExecPath
 

@@ -12,18 +12,18 @@ import           System.FilePath     (takeFileName, (</>))
 import qualified Templates.IO        as Tpl
 import qualified Templates.Project   as Prj
 
-data InitOptions = InitOptions
-  { scriptRoot     :: FilePath
+data Options = Options
+  { projectDir     :: Maybe FilePath
   , syncExtensions :: Bool
   } deriving (Show, Eq, Generic)
 
-initOptionsParser :: Parser InitOptions
-initOptionsParser = InitOptions
-  <$> strOption
-        (  long "script-root"
+initOptionsParser :: Parser Options
+initOptionsParser = Options
+  <$> optional (strOption
+        (  long "project-dir"
         <> metavar "DIR"
-        <> help "The script root directory to initialize the application in"
-        )
+        <> help "The directory to initialize the application in"
+        ))
   <*> switch
         (  long "sync-extensions"
         <> help "Synchronize the Azure Function binding extensions"
@@ -32,12 +32,15 @@ initOptionsParser = InitOptions
 initCommand :: Parser (IO ())
 initCommand = runInitCommand <$> initOptionsParser
 
-runInitCommand :: InitOptions -> IO ()
+runInitCommand :: Options -> IO ()
 runInitCommand opts = do
-  projectRoot <- Dir.makeAbsolute (scriptRoot opts)
+  projectRoot <- maybe Dir.getCurrentDirectory pure (projectDir opts)
+  Dir.createDirectoryIfMissing True projectRoot
+
   let name = takeFileName projectRoot
 
   Tpl.writeFileIfNotExist (projectRoot </> "host.json") Prj.hostJson []
+  Tpl.writeFileIfNotExist (projectRoot </> "local.settings.json") Prj.localSettingsJson []
 
   Tpl.writeFileIfNotExist (projectRoot </> "package.yaml") Prj.packageYaml [("name", Text.pack name)]
 

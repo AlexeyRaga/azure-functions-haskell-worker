@@ -40,15 +40,17 @@ library
 
   build-tool-depends:   proto-lens-protoc:proto-lens-protoc
 
-  build-depends:        base >=4.12 && <4.13
+  build-depends:        base                          >= 4.12     && < 4.13
                       , directory
                       , filepath
-                      , glabrous              >= 2.0.2  && < 3
-                      , optparse-applicative  >=0.15.1 && <0.16
+                      , glabrous                      >= 2.0.2    && < 3
+                      , http2-grpc-proto-lens         >= 0.1      && < 0.2
+                      , optparse-applicative          >= 0.15.1   && < 0.16
                       , proto-lens-runtime
                       , proto-lens-protobuf-types
-                      , raw-strings-qq        >= 1.1    && < 2
+                      , raw-strings-qq                >= 1.1      && < 2
                       , text
+                      , warp-grpc                     >= 0.4.0.1  && < 0.5
 
 test-suite azure-functions-test
   import:               config

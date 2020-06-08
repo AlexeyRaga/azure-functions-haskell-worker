@@ -2,7 +2,14 @@
 
 This is a very early work in progress.
 
-## Documentation
+This repository contains:
+
+- CLI Tools for creating, running and packaging Azure functions in Haskell: [azure-functions-tools](./azure-functions-tools/README.md)
+- Haskell runtime for Azure functions: [azure-functions-worker](./azure-functions-worker/README.md)
+
+See `README` for these projects for more info and usage information.
+
+## References
 
 * <https://github.com/azure/azure-functions>
 * Contract: <https://github.com/Azure/azure-functions-language-worker-protobuf>

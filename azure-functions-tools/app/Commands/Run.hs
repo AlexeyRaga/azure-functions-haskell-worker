@@ -11,22 +11,31 @@ import           Options.Applicative
 import           System.Directory    as Dir
 import           System.Exit         (ExitCode (..))
 import           System.FilePath     (takeFileName, (</>))
+import qualified System.IO.Temp      as Temp
 import           System.Process      (CreateProcess (..), proc, waitForProcess, withCreateProcess)
 import qualified Templates.IO        as Tpl
 import qualified Templates.Project   as Prj
 
-data RunOptions = RunOptions
-  { scriptRoot     :: FilePath
+type ProjectName = String
+
+data Options = Options
+  { projectDir     :: Maybe FilePath
+  , scriptRoot     :: Maybe FilePath
   , syncExtensions :: Bool
   } deriving (Show, Eq, Generic)
 
-runOptionsParser :: Parser RunOptions
-runOptionsParser = RunOptions
-  <$> strOption
+runOptionsParser :: Parser Options
+runOptionsParser = Options
+  <$> optional (strOption
+        (  long "project-dir"
+        <> metavar "DIR"
+        <> help "Project directory. If not specified, current directory is used."
+        ))
+  <*> optional (strOption
         (  long "script-root"
         <> metavar "DIR"
         <> help "The script root directory to initialize the application in"
-        )
+        ))
   <*> switch
         (  long "sync-extensions"
         <> help "Synchronize the Azure Function binding extensions"
@@ -35,44 +44,45 @@ runOptionsParser = RunOptions
 runCommand :: Parser (IO ())
 runCommand = runRunCommand <$> runOptionsParser
 
-runRunCommand :: RunOptions -> IO ()
+runRunCommand :: Options -> IO ()
 runRunCommand opts = do
-  projectRoot <- Dir.makeAbsolute (scriptRoot opts)
-  let name = takeFileName projectRoot
+  funcRoot <- maybe Dir.getCurrentDirectory pure (projectDir opts)
+  let name = takeFileName funcRoot
 
-  let workerDir = projectRoot </> "workers" </> "haskell"
-  createDirectoryIfMissing True workerDir
+  withScriptRoot opts $ \projectRoot -> do
+    let workerDir = projectRoot </> "workers" </> "haskell"
+    createDirectoryIfMissing True workerDir
 
-  print "Running hpack"
-  runOSCommand projectRoot "hpack"
-    [ projectRoot
-    , "--force"
-    ]
+    print "Running hpack"
+    runOSCommand funcRoot "hpack"
+      [ "."
+      , "--force"
+      ]
 
-  print "Copying executable"
-  runOSCommand projectRoot "cabal"
-    [ "run"
-    , "exe:" <> name
-    , "--"
-    , "init"
-    , "--script-root"
-    , projectRoot
-    ]
+    print "Copying executable"
+    runOSCommand funcRoot "cabal"
+      [ "run"
+      , "exe:" <> name
+      , "--"
+      , "init"
+      , "--script-root"
+      , projectRoot
+      ]
 
-  bins <- getExecutables (workerDir </> "bin")
-  let execPath = case bins of
-                  [bin] -> bin
-                  []    -> error $ "No executables have been installed into " <> (workerDir </> "bin")
-                  _     -> error $ "More than one executable found in " <> (workerDir </> "bin")
-
-  Tpl.writeFileIfNotExist (workerDir </> "worker.config.json") Prj.workerConfigJson [("execPath", Text.pack execPath)]
-
-  runOSCommand projectRoot "func"
-    [ "host"
-    , "start"
-    ]
+    runOSCommand projectRoot "func"
+      [ "host"
+      , "start"
+      ]
 
 --------------------------------------------------------------------------------
+
+withScriptRoot :: Options -> (FilePath -> IO a) -> IO a
+withScriptRoot opts f =
+  case (scriptRoot opts) of
+    Just path -> f path
+    Nothing ->
+      Temp.withSystemTempDirectory "script-root" f
+
 
 runOSCommand :: FilePath -> String -> [String] -> IO ()
 runOSCommand cwd cmd args = do
