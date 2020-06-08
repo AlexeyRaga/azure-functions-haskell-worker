@@ -15,7 +15,7 @@ import           System.Environment                 (getArgs, getExecutablePath)
 import           System.FilePath                    ((</>))
 
 import Network.GRPC.Server
-import Network.Wai.Handler.Warp    (HostPreference, defaultSettings, setHost, setPort)
+import Network.Wai.Handler.Warp    (HostPreference, defaultSettings, runSettings, setHost, setPort)
 import Network.Wai.Handler.WarpTLS (defaultTlsSettings, tlsSettingsMemory)
 import Proto.FunctionRpc
 
@@ -57,7 +57,7 @@ runCommand = runRunCommand <$> optionsParser
 runRunCommand :: Options -> IO ()
 runRunCommand opts = do
   let settings = setPort (port opts) . setHost (host opts) $ defaultSettings
-  runGrpc defaultTlsSettings settings handlers []
+  runSettings settings (grpcApp [] handlers)
 
 handlers :: [ServiceHandler]
 handlers =
