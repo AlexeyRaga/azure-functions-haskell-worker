@@ -97,20 +97,36 @@ runRunCommand opts = do
 
 handleEnvelope :: StreamingMessage -> IO [StreamingMessage]
 handleEnvelope msg = do
+  -- appendFile "/tmp/msg" (show msg)
+  -- appendFile "/tmp/msg" "\n\n"
+
+  let rid = msg ^. Fields.requestId
   case msg ^. Fields.maybe'content of
     Nothing -> pure []
-    Just c  -> handleMessage c
+    Just c  -> handleMessage rid c
 
-  pure []
 
-handleMessage :: StreamingMessage'Content -> IO [StreamingMessage]
-handleMessage (StreamingMessage'WorkerInitRequest msg) = handleInitRequest msg
-handleMessage (StreamingMessage'FunctionLoadRequest msg)   = do
-  print $ "FUNCTION LOAD: " <> show msg
-  undefined
+handleMessage :: RequestId -> StreamingMessage'Content -> IO [StreamingMessage]
 
-handleInitRequest :: WorkerInitRequest -> IO [StreamingMessage]
-handleInitRequest msg = do
+handleMessage rid (StreamingMessage'WorkerInitRequest msg) = handleInitRequest rid msg
+
+handleMessage rid (StreamingMessage'FunctionLoadRequest msg)   = do
+  let status = defMessage @StatusResult
+                & Fields.status .~ StatusResult'Success
+  let resp = defMessage @FunctionLoadResponse
+                & Fields.functionId .~ (msg ^. Fields.functionId)
+                & Fields.result .~ status
+  pure
+    [ defMessage @StreamingMessage
+        & Fields.requestId .~ rid
+        & Fields.maybe'content .~ Just (StreamingMessage'FunctionLoadResponse resp)
+    ]
+
+handleMessage rid msg =
+  print msg >> pure []
+
+handleInitRequest :: RequestId -> WorkerInitRequest -> IO [StreamingMessage]
+handleInitRequest rid msg = do
   let status = defMessage @StatusResult
                 & Fields.status .~ StatusResult'Success
   let resp = defMessage @WorkerInitResponse
@@ -118,7 +134,9 @@ handleInitRequest msg = do
                 & Fields.maybe'result .~ Just status
 
   pure
-    [ defMessage @StreamingMessage & Fields.maybe'content .~ Just (StreamingMessage'WorkerInitResponse resp)
+    [ defMessage @StreamingMessage
+        & Fields.requestId .~ rid
+        & Fields.maybe'content .~ Just (StreamingMessage'WorkerInitResponse resp)
     ]
 
 -------------------------------------------------------------------------------
