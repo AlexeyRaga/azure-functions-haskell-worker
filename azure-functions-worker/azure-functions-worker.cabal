@@ -29,6 +29,7 @@ library
                         Proto.FunctionRpc_Fields
                         Proto.Identity.ClaimsIdentityRpc
                         Proto.Shared.NullableTypes
+                        Paths_azure_functions_worker
 
   other-modules:        Azure.Functions.Commands.Init
                         Azure.Functions.Commands.Run
@@ -37,6 +38,7 @@ library
                         Proto.FunctionRpc_Fields
                         Proto.Identity.ClaimsIdentityRpc
                         Proto.Shared.NullableTypes
+                        Paths_azure_functions_worker
 
   build-tool-depends:   proto-lens-protoc:proto-lens-protoc
 
@@ -45,14 +47,20 @@ library
                       , filepath
                       , glabrous                      >= 2.0.2    && < 3
                       , http2-grpc-proto-lens         >= 0.1      && < 0.2
+                      , http2-client-grpc             >= 0.8      && < 0.9
+                      , http2-grpc-types
+                      , http2-client                  >= 0.9      && < 0.10
+                      , lens-family                   >= 2.0      && < 3
+                      , lens-family-core              >= 2.0      && < 3
+                      , mtl
                       , optparse-applicative          >= 0.15.1   && < 0.16
                       , proto-lens-runtime
                       , proto-lens-protobuf-types
                       , raw-strings-qq                >= 1.1      && < 2
                       , text
-                      , warp-grpc                     >= 0.4.0.1  && < 0.5
-                      , warp-tls                      >= 3.2.12   && < 3.3
-                      , warp                          >= 3.3.9    && < 3.4
+                      -- , warp-grpc                     >= 0.4.0.1  && < 0.5
+                      -- , warp-tls                      >= 3.2.12   && < 3.3
+                      -- , warp                          >= 3.3.9    && < 3.4
 
 test-suite azure-functions-test
   import:               config

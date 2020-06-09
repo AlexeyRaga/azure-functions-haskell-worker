@@ -1,29 +1,45 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
 module Azure.Functions.Commands.Run
 where
 
 import qualified Azure.Functions.Internal.Templates as Tpl
+import           Control.Monad                      (void)
+import           Control.Monad.Except               (runExceptT)
+import           Control.Monad.IO.Class             (liftIO)
+import           Data.Text                          (Text)
 import qualified Data.Text                          as Text
 import           GHC.Generics                       (Generic)
+import           Lens.Family                        ((&), (.~), (^.))
 import           Network.GRPC.HTTP2.ProtoLens       (RPC (..))
 import           Options.Applicative
 import           System.Directory                   as Dir
 import           System.Environment                 (getArgs, getExecutablePath)
 import           System.FilePath                    ((</>))
 
-import Network.GRPC.Server
-import Network.Wai.Handler.Warp    (HostPreference, defaultSettings, runSettings, setHost, setPort)
-import Network.Wai.Handler.WarpTLS (defaultTlsSettings, tlsSettingsMemory)
-import Proto.FunctionRpc
+import Network.GRPC.Client             as GRPC
+import Network.GRPC.Client.Helpers     as GRPC
+import Network.HTTP2.Client            (HostName, PortNumber, TooMuchConcurrency)
+import Network.HTTP2.Client.Exceptions (ClientIO)
+
+import Data.ProtoLens.Runtime.Data.ProtoLens as PL
+
+import           Proto.FunctionRpc
+import qualified Proto.FunctionRpc_Fields as Fields
+
+import Paths_azure_functions_worker (version)
+
+type RequestId = Text
+type WorkerId  = Text
 
 data Options = Options
-  { host      :: HostPreference
-  , port      :: Int
-  , workerId  :: String
-  , requestId :: String
+  { host      :: HostName
+  , port      :: PortNumber
+  , workerId  :: WorkerId
+  , requestId :: RequestId
   } deriving (Show, Generic)
 
 optionsParser :: Parser Options
@@ -54,28 +70,61 @@ optionsParser = Options
 runCommand :: Parser (IO ())
 runCommand = runRunCommand <$> optionsParser
 
+data WorkerState = Unitialised | Started
+
 runRunCommand :: Options -> IO ()
 runRunCommand opts = do
-  let settings = setPort (port opts) . setHost (host opts) $ defaultSettings
-  runSettings settings (grpcApp [] handlers)
+  let cfg = GRPC.grpcClientConfigSimple (host opts) (port opts) False
 
-handlers :: [ServiceHandler]
-handlers =
-  [ generalStream (RPC :: RPC FunctionRpc "eventStream") eventStreamHandler
-  ]
+  let startMsg  = PL.defMessage @StartStream & Fields.workerId .~ (workerId opts)
+  let initMsg   = PL.defMessage @StreamingMessage
+                    & Fields.requestId .~ (requestId opts)
+                    & Fields.maybe'content .~ Just (StreamingMessage'StartStream startMsg)
 
-eventStreamHandler :: GeneralStreamHandler IO StreamingMessage StreamingMessage Int ()
-eventStreamHandler req = do
-  print req
-  pure (0, incoming, (), outgoing)
-  where
-    incoming = IncomingStream handleMessage handleEof
-    outgoing = OutgoingStream (\_ -> pure Nothing)
+  let rpc = RPC :: RPC FunctionRpc "eventStream"
 
-    handleEof _ = pure ()
+  cres <- runExceptT $ do
+    client <- GRPC.setupGrpcClient cfg
+    -- void . notTooMuch $ GRPC.rawUnary rpc client initMsg
 
-    handleMessage n msg = do
-      let fileName = "/tmp/msg-" <> show n
-      writeFile fileName (show msg)
-      pure (n+1)
+    notTooMuch $ rawSteppedBidirectional rpc client [initMsg] $ \case
+      []      -> pure ([], WaitOutput (\_ _ -> liftIO . handleEnvelope) (\_ s _ -> pure s))
+      (x:xs)  -> pure (xs, SendInput Uncompressed x)
 
+
+  print "-----------------------------------------------------------------------------"
+  print cres
+
+handleEnvelope :: StreamingMessage -> IO [StreamingMessage]
+handleEnvelope msg = do
+  case msg ^. Fields.maybe'content of
+    Nothing -> pure []
+    Just c  -> handleMessage c
+
+  pure []
+
+handleMessage :: StreamingMessage'Content -> IO [StreamingMessage]
+handleMessage (StreamingMessage'WorkerInitRequest msg) = handleInitRequest msg
+handleMessage (StreamingMessage'FunctionLoadRequest msg)   = do
+  print $ "FUNCTION LOAD: " <> show msg
+  undefined
+
+handleInitRequest :: WorkerInitRequest -> IO [StreamingMessage]
+handleInitRequest msg = do
+  let status = defMessage @StatusResult
+                & Fields.status .~ StatusResult'Success
+  let resp = defMessage @WorkerInitResponse
+                & Fields.workerVersion .~ Text.pack (show version)
+                & Fields.maybe'result .~ Just status
+
+  pure
+    [ defMessage @StreamingMessage & Fields.maybe'content .~ Just (StreamingMessage'WorkerInitResponse resp)
+    ]
+
+-------------------------------------------------------------------------------
+notTooMuch :: ClientIO (Either TooMuchConcurrency a) -> ClientIO a
+notTooMuch f = do
+  ma <- f
+  case ma of
+    Left _  -> error "Too much concurrency. TODO: do something smarter"
+    Right a -> pure a

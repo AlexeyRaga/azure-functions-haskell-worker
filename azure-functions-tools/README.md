@@ -40,5 +40,5 @@ azure-functions-tools run --project-dir /tmp/hello
 Or (while working on `azure-functions-tools`):
 
 ```bash
-cabal run azure-functions-tools -- run --project-dir /tmp/hello
+cabal run azure-functions-tools -- run --project-dir /tmp/hello --script-root /tmp/hello
 ```

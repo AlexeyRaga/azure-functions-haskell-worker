@@ -49,4 +49,4 @@ runInitCommand opts = do
 
   Dir.copyFileWithMetadata execPath workerExecPath
 
-  Tpl.writeFileIfNotExist (workerDir </> "worker.config.json") Tpl.workerConfigJson [("execPath", Text.pack workerExecPath)]
+  Tpl.writeFile (workerDir </> "worker.config.json") Tpl.workerConfigJson [("execPath", Text.pack workerExecPath)]
