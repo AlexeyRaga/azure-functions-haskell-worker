@@ -31,16 +31,18 @@ library
                         Proto.Shared.NullableTypes
                         Paths_azure_functions_worker
 
-  other-modules:        Azure.Functions.Commands.Init
+  other-modules:        Azure.Functions.Bindings.HTTP
+                        Azure.Functions.Commands.Init
                         Azure.Functions.Commands.Run
                         Azure.Functions.Internal.Templates
                         Proto.FunctionRpc
                         Proto.FunctionRpc_Fields
+                        Proto.FunctionRpc_Helpers
                         Proto.Identity.ClaimsIdentityRpc
                         Proto.Shared.NullableTypes
                         Paths_azure_functions_worker
 
-  build-tool-depends:   proto-lens-protoc:proto-lens-protoc
+  build-tool-depends:   proto-lens-protoc:proto-lens-protoc >= 0.6 && < 0.7
 
   build-depends:        base                          >= 4.12     && < 4.13
                       , directory
@@ -54,8 +56,8 @@ library
                       , lens-family-core              >= 2.0      && < 3
                       , mtl
                       , optparse-applicative          >= 0.15.1   && < 0.16
-                      , proto-lens-runtime
-                      , proto-lens-protobuf-types
+                      , proto-lens-runtime            >= 0.6      && < 0.7
+                      , proto-lens-protobuf-types     >= 0.6      && < 0.7
                       , raw-strings-qq                >= 1.1      && < 2
                       , text
                       -- , warp-grpc                     >= 0.4.0.1  && < 0.5

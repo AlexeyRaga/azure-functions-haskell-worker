@@ -1,8 +1,10 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TypeApplications      #-}
+
 module Azure.Functions.Commands.Run
 where
 
@@ -28,7 +30,8 @@ import Network.HTTP2.Client.Exceptions (ClientIO)
 import Data.ProtoLens.Runtime.Data.ProtoLens as PL
 
 import           Proto.FunctionRpc
-import qualified Proto.FunctionRpc_Fields as Fields
+import qualified Proto.FunctionRpc_Fields  as Fields
+import           Proto.FunctionRpc_Helpers (rpcLogError, toResponseLogError, toResponseLogError')
 
 import Paths_azure_functions_worker (version)
 
@@ -96,50 +99,52 @@ runRunCommand opts = do
   print cres
 
 handleEnvelope :: StreamingMessage -> IO [StreamingMessage]
-handleEnvelope msg = do
-  -- appendFile "/tmp/msg" (show msg)
+handleEnvelope req = do
+  -- appendFile "/tmp/msg" (show req)
   -- appendFile "/tmp/msg" "\n\n"
 
-  let rid = msg ^. Fields.requestId
-  case msg ^. Fields.maybe'content of
+  let rid = req ^. Fields.requestId
+  case req ^. Fields.maybe'content of
     Nothing -> pure []
-    Just c  -> handleMessage rid c
+    Just c -> case c of
+      StreamingMessage'WorkerInitRequest msg   -> sequence [toResponseLogError req <$> handleWorkerInit msg]
+      StreamingMessage'FunctionLoadRequest msg -> sequence [toResponseLogError req <$> handleFunctionLoad msg]
+      StreamingMessage'InvocationRequest msg   -> do
+        let f = toResponseLogError' req (\err -> err & Fields.invocationId .~ (msg ^. Fields.invocationId))
+        sequence [f <$> handleInvocation msg]
+      msg                                      -> print msg >> pure []
 
 
-handleMessage :: RequestId -> StreamingMessage'Content -> IO [StreamingMessage]
-
-handleMessage rid (StreamingMessage'WorkerInitRequest msg) = handleInitRequest rid msg
-
-handleMessage rid (StreamingMessage'FunctionLoadRequest msg)   = do
+handleFunctionLoad :: FunctionLoadRequest -> IO (Either Text FunctionLoadResponse)
+handleFunctionLoad req = do
   let status = defMessage @StatusResult
                 & Fields.status .~ StatusResult'Success
   let resp = defMessage @FunctionLoadResponse
-                & Fields.functionId .~ (msg ^. Fields.functionId)
+                & Fields.functionId .~ (req ^. Fields.functionId)
                 & Fields.result .~ status
-  pure
-    [ defMessage @StreamingMessage
-        & Fields.requestId .~ rid
-        & Fields.maybe'content .~ Just (StreamingMessage'FunctionLoadResponse resp)
-    ]
+  pure (Right resp)
 
-handleMessage rid msg =
-  print msg >> pure []
-
-handleInitRequest :: RequestId -> WorkerInitRequest -> IO [StreamingMessage]
-handleInitRequest rid msg = do
+handleWorkerInit :: WorkerInitRequest -> IO (Either Text WorkerInitResponse)
+handleWorkerInit msg = do
   let status = defMessage @StatusResult
                 & Fields.status .~ StatusResult'Success
   let resp = defMessage @WorkerInitResponse
                 & Fields.workerVersion .~ Text.pack (show version)
                 & Fields.maybe'result .~ Just status
 
-  pure
-    [ defMessage @StreamingMessage
-        & Fields.requestId .~ rid
-        & Fields.maybe'content .~ Just (StreamingMessage'WorkerInitResponse resp)
-    ]
+  pure (Right resp)
 
+
+handleInvocation :: InvocationRequest -> IO (Either Text InvocationResponse)
+handleInvocation req = do
+  let status = defMessage @StatusResult
+                & Fields.status .~ StatusResult'Failure
+  let resp = defMessage @InvocationResponse
+                & Fields.maybe'result .~ Just status
+  pure (Right resp)
 -------------------------------------------------------------------------------
+
+
 notTooMuch :: ClientIO (Either TooMuchConcurrency a) -> ClientIO a
 notTooMuch f = do
   ma <- f
