@@ -1,0 +1,16 @@
+cradle:
+  multi:
+    - path: ./azure-functions-tools/app
+      config:  {cradle: {cabal: {component: "exe:azure-functions-tools"}}}
+
+    - path: ./azure-functions-worker/src
+      config:  {cradle: {cabal: {component: "lib:azure-functions-worker" }}}
+
+    - path: ./azure-functions-worker/test
+      config:  {cradle: {cabal: {component: "component: test:azure-functions-worker" }}}
+
+    - path: "./azure-functions-worker/Setup.hs"
+      config: {cradle: {none: }}
+
+    - path: "./azure-functions-tools/Setup.hs"
+      config: {cradle: {none: }}
