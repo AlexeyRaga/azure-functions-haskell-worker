@@ -1,5 +1,6 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 module Proto.FunctionRpc_Helpers
 where
 
@@ -62,8 +63,27 @@ toResponseLogError' req updateLog resp =
       & requestId .~ (req ^. requestId)
       & maybe'content .~ Just content
 
-rpcLogError :: Text -> RpcLog
-rpcLogError msg =
+rpcLogMessage :: RpcLog'Level ->  Text -> RpcLog
+rpcLogMessage lvl msg =
   defMessage
-    & level   .~ RpcLog'Error
+    & level   .~ lvl
     & message .~ msg
+
+rpcLogInfo :: Text -> RpcLog
+rpcLogInfo = rpcLogMessage RpcLog'Information
+
+rpcLogError :: Text -> RpcLog
+rpcLogError = rpcLogMessage RpcLog'Error
+
+failureStatus :: Text -> StatusResult
+failureStatus msg =
+  defMessage @StatusResult
+    & status .~ StatusResult'Failure
+    & result .~ msg
+    & logs .~ [
+      rpcLogError msg
+    ]
+    & exception .~ (
+      defMessage @RpcException
+        & message .~ msg
+    )

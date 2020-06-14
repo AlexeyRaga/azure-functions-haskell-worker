@@ -31,7 +31,8 @@ library
                         Proto.Shared.NullableTypes
                         Paths_azure_functions_worker
 
-  other-modules:        Azure.Functions.Bindings.HTTP
+  other-modules:        Azure.Functions.Bindings.Class
+                        Azure.Functions.Bindings.HTTP
                         Azure.Functions.Commands.Init
                         Azure.Functions.Commands.Run
                         Azure.Functions.Internal.Templates
@@ -45,6 +46,8 @@ library
   build-tool-depends:   proto-lens-protoc:proto-lens-protoc >= 0.6 && < 0.7
 
   build-depends:        base                          >= 4.12     && < 4.13
+                      , bytestring
+                      , containers
                       , directory
                       , filepath
                       , glabrous                      >= 2.0.2    && < 3
@@ -52,17 +55,16 @@ library
                       , http2-client-grpc             >= 0.8      && < 0.9
                       , http2-grpc-types
                       , http2-client                  >= 0.9      && < 0.10
+                      , http-types                    >= 0.12     && < 0.13
                       , lens-family                   >= 2.0      && < 3
                       , lens-family-core              >= 2.0      && < 3
                       , mtl
+                      , network-uri                   >= 2.6.3    && < 2.7
                       , optparse-applicative          >= 0.15.1   && < 0.16
                       , proto-lens-runtime            >= 0.6      && < 0.7
                       , proto-lens-protobuf-types     >= 0.6      && < 0.7
                       , raw-strings-qq                >= 1.1      && < 2
                       , text
-                      -- , warp-grpc                     >= 0.4.0.1  && < 0.5
-                      -- , warp-tls                      >= 3.2.12   && < 3.3
-                      -- , warp                          >= 3.3.9    && < 3.4
 
 test-suite azure-functions-test
   import:               config

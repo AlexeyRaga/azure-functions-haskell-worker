@@ -31,9 +31,13 @@ import Data.ProtoLens.Runtime.Data.ProtoLens as PL
 
 import           Proto.FunctionRpc
 import qualified Proto.FunctionRpc_Fields  as Fields
-import           Proto.FunctionRpc_Helpers (rpcLogError, toResponseLogError, toResponseLogError')
+import           Proto.FunctionRpc_Helpers (rpcLogError, rpcLogInfo, toResponseLogError, toResponseLogError')
 
+import Data.Version                 (showVersion)
 import Paths_azure_functions_worker (version)
+
+import Azure.Functions.Bindings.Class (fromInvocationRequest)
+import Azure.Functions.Bindings.HTTP  (HttpRequest)
 
 type RequestId = Text
 type WorkerId  = Text
@@ -100,19 +104,22 @@ runRunCommand opts = do
 
 handleEnvelope :: StreamingMessage -> IO [StreamingMessage]
 handleEnvelope req = do
-  -- appendFile "/tmp/msg" (show req)
-  -- appendFile "/tmp/msg" "\n\n"
-
   let rid = req ^. Fields.requestId
-  case req ^. Fields.maybe'content of
-    Nothing -> pure []
-    Just c -> case c of
-      StreamingMessage'WorkerInitRequest msg   -> sequence [toResponseLogError req <$> handleWorkerInit msg]
-      StreamingMessage'FunctionLoadRequest msg -> sequence [toResponseLogError req <$> handleFunctionLoad msg]
-      StreamingMessage'InvocationRequest msg   -> do
-        let f = toResponseLogError' req (\err -> err & Fields.invocationId .~ (msg ^. Fields.invocationId))
-        sequence [f <$> handleInvocation msg]
-      msg                                      -> print msg >> pure []
+  resp <- case req ^. Fields.maybe'content of
+            Nothing -> pure []
+            Just c -> case c of
+              StreamingMessage'WorkerInitRequest msg   -> sequence [toResponseLogError req <$> handleWorkerInit msg]
+              StreamingMessage'FunctionLoadRequest msg -> sequence [toResponseLogError req <$> handleFunctionLoad msg]
+              StreamingMessage'InvocationRequest msg   -> do
+                let f = toResponseLogError' req (\err -> err & Fields.invocationId .~ (msg ^. Fields.invocationId))
+                sequence [f <$> handleInvocation msg]
+              msg                                      -> pure []
+
+  appendFile "/tmp/msg" ("Request:\n------------------------------------------------------------\n")
+  appendFile "/tmp/msg" (show req <> "\n\n")
+  appendFile "/tmp/msg" ("Response:\n------------------------------------------------------------\n")
+  appendFile "/tmp/msg" (show resp <> "\n\n")
+  pure resp
 
 
 handleFunctionLoad :: FunctionLoadRequest -> IO (Either Text FunctionLoadResponse)
@@ -128,8 +135,9 @@ handleWorkerInit :: WorkerInitRequest -> IO (Either Text WorkerInitResponse)
 handleWorkerInit msg = do
   let status = defMessage @StatusResult
                 & Fields.status .~ StatusResult'Success
+                & Fields.logs .~ [ rpcLogInfo ("Haskell worker loaded, version: " <>  Text.pack (showVersion version))]
   let resp = defMessage @WorkerInitResponse
-                & Fields.workerVersion .~ Text.pack (show version)
+                & Fields.workerVersion .~ Text.pack (showVersion version)
                 & Fields.maybe'result .~ Just status
 
   pure (Right resp)
@@ -137,13 +145,28 @@ handleWorkerInit msg = do
 
 handleInvocation :: InvocationRequest -> IO (Either Text InvocationResponse)
 handleInvocation req = do
+
   let status = defMessage @StatusResult
-                & Fields.status .~ StatusResult'Failure
+                & Fields.status .~ StatusResult'Success
+
+  let value = defMessage @TypedData
+                & Fields.maybe'data' .~ Just (TypedData'String "OK, FAKE RESPONSE")
+
+  let httpResp = defMessage @RpcHttp
+                  & Fields.body .~ value
+                  & Fields.statusCode .~ "200 OK"
+
+  let rValue = defMessage @TypedData
+                & Fields.maybe'data' .~ Just (TypedData'Http httpResp)
+
   let resp = defMessage @InvocationResponse
+                & Fields.invocationId .~ (req ^. Fields.invocationId)
                 & Fields.maybe'result .~ Just status
+                & Fields.maybe'returnValue .~ Just rValue
+
+  -- appendFile "/tmp/resp" (show resp <> "\n\n")
   pure (Right resp)
 -------------------------------------------------------------------------------
-
 
 notTooMuch :: ClientIO (Either TooMuchConcurrency a) -> ClientIO a
 notTooMuch f = do
