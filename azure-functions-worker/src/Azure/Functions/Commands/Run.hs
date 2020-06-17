@@ -37,8 +37,9 @@ import           Proto.FunctionRpc_Helpers (failureStatus, rpcLogError, rpcLogIn
 import Data.Version                 (showVersion)
 import Paths_azure_functions_worker (version)
 
-import Azure.Functions.Bindings.Class (fromInvocationRequest, toInvocationResponse)
-import Azure.Functions.Bindings.HTTP  (HttpRequest (..), HttpResponse (..))
+import Azure.Functions.Bindings.Class      (fromInvocationRequest, toInvocationResponse)
+import Azure.Functions.Bindings.HTTP       (HttpRequest (..), HttpResponse (..))
+import Azure.Functions.Bindings.ServiceBus (ReceivedMessage (..))
 
 type RequestId = Text
 type WorkerId  = Text
@@ -105,6 +106,9 @@ runRunCommand opts = do
 
 handleEnvelope :: StreamingMessage -> IO [StreamingMessage]
 handleEnvelope req = do
+  appendFile "/tmp/msg" ("Request:\n============================================================\n")
+  appendFile "/tmp/msg" (show req <> "\n\n")
+
   let rid = req ^. Fields.requestId
   resp <- case req ^. Fields.maybe'content of
             Nothing -> pure []
@@ -114,8 +118,6 @@ handleEnvelope req = do
               StreamingMessage'InvocationRequest msg   -> sequence [toResponse req <$> handleInvocation msg]
               msg                                      -> pure []
 
-  appendFile "/tmp/msg" ("Request:\n------------------------------------------------------------\n")
-  appendFile "/tmp/msg" (show req <> "\n\n")
   appendFile "/tmp/msg" ("Response:\n------------------------------------------------------------\n")
   appendFile "/tmp/msg" (show resp <> "\n\n")
   pure resp
@@ -145,15 +147,18 @@ handleWorkerInit msg = do
 handleInvocation :: InvocationRequest -> IO InvocationResponse
 handleInvocation req = do
 
-  let httpReq = fromInvocationRequest @HttpRequest req
+  let httpReq = fromInvocationRequest @ReceivedMessage req
   case httpReq of
-    Nothing -> pure $
+    Left err -> pure $
       defMessage @InvocationResponse
         & Fields.invocationId .~ (req ^. Fields.invocationId)
-        & Fields.result .~ failureStatus "Unable to parse HTTP request"
+        & Fields.result .~ failureStatus ("Unable to parse ServiceBus request: " <> err)
 
-    Just req' -> do
-      httpResp <- toInvocationResponse <$> fakeHttpFunction req'
+    Right req' -> do
+      -- appendFile "/tmp/msg" ("Converted:\n------------------------------------------------------------\n")
+      -- appendFile "/tmp/msg" (show req' <> "\n\n")
+      -- httpResp <- toInvocationResponse <$> fakeHttpFunction req'
+      httpResp <- toInvocationResponse <$> pure ()
       pure $ httpResp & Fields.invocationId .~ (req ^. Fields.invocationId)
 
 -------------------------------------------------------------------------------

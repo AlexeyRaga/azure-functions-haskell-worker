@@ -11,6 +11,7 @@ module Azure.Functions.Bindings.HTTP
 where
 
 import           Azure.Functions.Bindings.Class
+import           Azure.Functions.Internal.Lens         (toEither)
 import           Data.ByteString                       (ByteString)
 import qualified Data.Map                              as Map
 import           Data.Map.Strict                       (Map)
@@ -19,7 +20,7 @@ import           Data.Text                             (Text)
 import qualified Data.Text                             as Text
 import qualified Data.Text.Encoding                    as Text
 import           GHC.Generics                          (Generic)
-import           Lens.Family                           ((&), (.~), (^.))
+import           Lens.Family                           (LensLike, Phantom, to, view, (&), (.~), (^.))
 import           Lens.Family.Stock                     (at)
 import           Network.URI                           (URI, parseURI)
 import           Proto.FunctionRpc
@@ -31,18 +32,19 @@ data HttpRequest = HttpRequest
   , httpRequestQuery   :: Map Text Text
   , httpRequestHeaders :: Map Text Text
   , httpRequestBody    :: Maybe ByteString
-  } deriving (Show, Generic)
+  } deriving (Show, Eq, Generic)
 
 data HttpResponse = HttpResponse
   { httpResponseStatus  :: Int
   , httpResponseBody    :: Maybe ByteString
   , httpResponseHeaders :: Map Text Text
-  } deriving (Show, Generic)
+  } deriving (Show, Eq, Generic)
 
 instance FromInvocationRequest HttpRequest where
-  fromInvocationRequest req = do
-    td <- req ^. triggerMetadata . at "$request"
-    td ^. maybe'http >>= fromRpcHttp
+  fromInvocationRequest req = -- undefined
+    req ^. triggerMetadata . at "$request" . toEither "Unable to find $request parameter"
+        >>= view (maybe'http . toEither "Unexpected payload, RpcHttp is expected")
+        >>= fromRpcHttp
 
 instance ToInvocationResponse HttpResponse where
   toInvocationResponse resp =
@@ -61,9 +63,9 @@ instance ToInvocationResponse HttpResponse where
         & returnValue .~ (defMessage @TypedData & http .~ ht)
         & result .~ stts
 
-fromRpcHttp :: RpcHttp -> Maybe HttpRequest
+fromRpcHttp :: RpcHttp -> Either Text HttpRequest
 fromRpcHttp req = do
-  uri <- parseURI $ Text.unpack (req ^. url)
+  uri <- req ^. url . to (Text.unpack) . to parseURI . toEither "Unable to parse URI"
 
   pure HttpRequest
         { httpRequestMethod   = req ^. method
@@ -75,10 +77,10 @@ fromRpcHttp req = do
 
 fromTypedData :: TypedData -> Maybe ByteString
 fromTypedData td =
-  case td ^. maybe'data' of
-    Just (TypedData'String v) -> Just (Text.encodeUtf8 v)
-    Just (TypedData'Json v)   -> Just (Text.encodeUtf8 v)
-    Just (TypedData'Bytes v)  -> Just v
-    Just (TypedData'Stream v) -> Just v
-    _                         -> Nothing
+  td ^. maybe'data' >>= \case
+    TypedData'String v -> Just (Text.encodeUtf8 v)
+    TypedData'Json v   -> Just (Text.encodeUtf8 v)
+    TypedData'Bytes v  -> Just v
+    TypedData'Stream v -> Just v
+    _                  -> Nothing
 
