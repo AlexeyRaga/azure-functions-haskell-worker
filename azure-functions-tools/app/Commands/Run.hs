@@ -13,8 +13,8 @@ import           System.Exit         (ExitCode (..))
 import           System.FilePath     (takeFileName, (</>))
 import qualified System.IO.Temp      as Temp
 import           System.Process      (CreateProcess (..), proc, waitForProcess, withCreateProcess)
-import qualified Templates.IO        as Tpl
 import qualified Templates.Project   as Prj
+import qualified Templates.Utils     as Tpl
 
 type ProjectName = String
 

@@ -8,9 +8,9 @@ import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
 import           Options.Applicative
 import           System.Directory    as Dir
-import           System.FilePath     (takeFileName, (</>))
-import qualified Templates.IO        as Tpl
+import           System.FilePath     (takeFileName, (<.>), (</>))
 import qualified Templates.Project   as Prj
+import qualified Templates.Utils     as Tpl
 
 data Options = Options
   { projectDir     :: Maybe FilePath
@@ -42,6 +42,7 @@ runInitCommand opts = do
   Tpl.writeFileIfNotExist (projectRoot </> "host.json") Prj.hostJson []
   Tpl.writeFileIfNotExist (projectRoot </> "local.settings.json") Prj.localSettingsJson []
 
+  Tpl.writeFileIfNotExist (projectRoot </> name <.> "cabal") (Prj.cabalFile name) [("name", Text.pack name)]
   Tpl.writeFileIfNotExist (projectRoot </> "package.yaml") Prj.packageYaml [("name", Text.pack name)]
 
   Tpl.writeFile (projectRoot </> "src" </> "Main.hs") Prj.mainHs []

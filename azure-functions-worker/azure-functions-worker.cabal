@@ -36,6 +36,7 @@ library
                         Azure.Functions.Bindings.ServiceBus
                         Azure.Functions.Commands.Init
                         Azure.Functions.Commands.Run
+                        Azure.Functions.Function
                         Azure.Functions.Internal.Lens
                         Azure.Functions.Internal.Templates
                         Proto.FunctionRpc

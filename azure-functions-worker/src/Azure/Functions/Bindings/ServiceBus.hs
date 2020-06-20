@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StrictData        #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE StrictData            #-}
+{-# LANGUAGE TypeApplications      #-}
 module Azure.Functions.Bindings.ServiceBus
 where
 
@@ -10,7 +11,7 @@ import           Azure.Functions.Bindings.Class
 import           Azure.Functions.Internal.Lens  (orError)
 import           Control.Applicative            (Alternative, (<|>))
 import           Control.Arrow                  ((&&&))
-import           Data.Aeson                     (FromJSON, decodeStrict')
+import           Data.Aeson                     (FromJSON, ToJSON (..), decodeStrict', object, (.=))
 import           Data.ByteString                (ByteString)
 import           Data.Functor                   ((<&>))
 import           Data.Int                       (Int32, Int64)
@@ -41,6 +42,23 @@ toKey               = "To"
 labelKey            = "Label"
 correlationIdKey    = "CorrelationId"
 userPropertiesKey   = "UserProperties"
+
+data ServiceBusQueue = ServiceBusQueue
+  { serviceBusQueueName :: Text
+  }
+
+instance InBinding ServiceBusQueue ReceivedMessage where
+instance OutBinding ServiceBusQueue () where
+
+instance ToJSON ServiceBusQueue where
+  toJSON v = object
+    [ "name"          .= ("queueTrigger" :: Text)
+    , "type"          .= ("serviceBusTrigger" :: Text)
+    , "direction"     .= ("in" :: Text)
+    , "queueName"     .= serviceBusQueueName v
+    , "connection"    .= ("ServiceBus" :: Text)
+    , "accessRights"  .= ("Listen" :: Text)
+    ]
 
 data ReceivedMessage = ReceivedMessage
   { receivedMessageId               :: Text            -- ^ The user-defined value that Service Bus can use to identify duplicate messages, if enabled.

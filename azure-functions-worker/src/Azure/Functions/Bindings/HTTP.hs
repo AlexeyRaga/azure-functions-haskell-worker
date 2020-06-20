@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE StrictData        #-}
-{-# LANGUAGE TypeApplications  #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE StrictData            #-}
+{-# LANGUAGE TypeApplications      #-}
 module Azure.Functions.Bindings.HTTP
 ( HttpRequest(..)
 , HttpResponse(..)
@@ -25,6 +26,11 @@ import           Lens.Family.Stock                     (at)
 import           Network.URI                           (URI, parseURI)
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
+
+data HttpBinding  = InHttpBinding
+
+instance InBinding HttpBinding HttpRequest where
+instance OutBinding HttpBinding HttpResponse where
 
 data HttpRequest = HttpRequest
   { httpRequestMethod  :: Text
