@@ -17,7 +17,8 @@ executable azure-functions-tools
   default-language:     Haskell2010
   main-is:              Main.hs
   other-modules:        Commands.Init
-  other-modules:        Commands.New
+  other-modules:        Cabal.Patch
+                        Commands.New
                         Commands.Run
                         Templates.New
                         Templates.Project

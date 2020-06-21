@@ -20,6 +20,8 @@ import qualified Templates.New       as TplNew
 import qualified Templates.Project   as Prj
 import qualified Templates.Utils     as Tpl
 
+import Cabal.Patch as Cabal
+
 newtype FunctionName = FunctionName Text deriving (Show, Eq, Generic)
 newtype ModuleName = ModuleName Text deriving (Show, Eq, Generic)
 data Options = Options
@@ -62,6 +64,7 @@ newCommand = runNewCommand <$> runOptionsParser
 runNewCommand :: Options -> IO ()
 runNewCommand opts = do
   funcRoot <- maybe Dir.getCurrentDirectory pure (projectDir opts)
+  let projectName = takeFileName funcRoot
   let ModuleName modName = toModuleName (name opts)
 
   let srcDir = funcRoot </> "src"
@@ -75,7 +78,10 @@ runNewCommand opts = do
     Http       -> Tpl.writeNewFile functionFile TplNew.httpFunction [("moduleName", modName)]
     ServiceBus -> undefined
 
-  undefined
+  let cabalFilePath = funcRoot </> projectName <.> "cabal"
+  cabalLines <- Cabal.readCabal cabalFilePath
+  let newCabalLines = Cabal.addFunctionModules cabalLines ["Functions." <> modName]
+  Cabal.writeCabal cabalFilePath newCabalLines
 
 --------------------------------------------------------------------------------
 readFunctionName :: String -> Either String FunctionName

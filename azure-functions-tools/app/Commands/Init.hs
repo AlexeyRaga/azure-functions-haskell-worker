@@ -43,7 +43,6 @@ runInitCommand opts = do
   Tpl.writeFileIfNotExist (projectRoot </> "local.settings.json") Prj.localSettingsJson []
 
   Tpl.writeFileIfNotExist (projectRoot </> name <.> "cabal") (Prj.cabalFile name) [("name", Text.pack name)]
-  Tpl.writeFileIfNotExist (projectRoot </> "package.yaml") Prj.packageYaml [("name", Text.pack name)]
 
   Tpl.writeFile (projectRoot </> "src" </> "Main.hs") Prj.mainHs []
 
