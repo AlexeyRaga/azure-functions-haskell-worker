@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
-module Cabal.Patch
+module Patchers.Cabal
 where
 
 import           Data.Bifunctor (first)

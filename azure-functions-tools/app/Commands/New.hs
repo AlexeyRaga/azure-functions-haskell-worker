@@ -11,6 +11,7 @@ import           Data.Text           (Text)
 import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
 import           Options.Applicative
+import           Patchers.Cabal      as Cabal
 import           System.Directory    as Dir
 import           System.Exit         (ExitCode (..))
 import           System.FilePath     (takeFileName, (<.>), (</>))
@@ -19,8 +20,6 @@ import           System.Process      (CreateProcess (..), proc, waitForProcess, 
 import qualified Templates.New       as TplNew
 import qualified Templates.Project   as Prj
 import qualified Templates.Utils     as Tpl
-
-import Cabal.Patch as Cabal
 
 newtype FunctionName = FunctionName Text deriving (Show, Eq, Generic)
 newtype ModuleName = ModuleName Text deriving (Show, Eq, Generic)
