@@ -23,7 +23,8 @@ common config
 library
   import:               config
   hs-source-dirs:       src
-  exposed-modules:      Azure.Functions.Worker
+  exposed-modules:      Azure.Functions.Contract
+                        Azure.Functions.Worker
 
   autogen-modules:      Proto.FunctionRpc
                         Proto.FunctionRpc_Fields

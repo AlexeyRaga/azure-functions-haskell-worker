@@ -44,7 +44,8 @@ runInitCommand opts = do
 
   Tpl.writeFileIfNotExist (projectRoot </> name <.> "cabal") (Prj.cabalFile name) [("name", Text.pack name)]
 
-  Tpl.writeFile (projectRoot </> "src" </> "Main.hs") Prj.mainHs []
+  Tpl.writeFileIfNotExist (projectRoot </> "src" </> "Main.hs") Prj.mainHs []
+  Tpl.writeFileIfNotExist (projectRoot </> "src" </> "Registry.hs") Prj.registryHs []
 
 
 

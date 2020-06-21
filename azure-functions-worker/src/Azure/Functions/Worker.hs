@@ -1,4 +1,6 @@
 module Azure.Functions.Worker
+( runWorker
+)
 where
 
 import           Azure.Functions.Commands.Init (initCommand)

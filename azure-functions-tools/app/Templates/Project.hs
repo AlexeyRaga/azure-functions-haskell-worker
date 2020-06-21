@@ -62,20 +62,40 @@ build-type:     Simple
 -- Do NOT remove this stanza.
 -- it is used by the tooling to expose automatically generated functions.
 common functions
-  exposed-modules:
+  other-modules:
 
 executable {{name}}
   import functions
+  default-language: Haskell2010
   main-is: Main.hs
   hs-source-dirs: src
   ghc-options: -Wall
+  other-modules:
+      Registry
   build-depends:
       base                      >= 4.9 && < 5
     , aeson
     , azure-functions-worker
     , bytestring
+    , containers
     , text
-  default-language: Haskell2010
+
+|]
+
+registryHs :: Template
+registryHs = toTemplate "Registry.hs" [r|
+{-# LANGUAGE OverloadedStrings #-}
+module Registry
+( functions
+)
+where
+
+import Data.Text (Text)
+import Data.Map.Strict (Map)
+import Azure.Functions.Contract (InvocationRequest, InvocationResponse)
+
+functions :: Map Text (InvocationRequest -> IO InvocationResponse)
+functions = mempty
 
 |]
 
@@ -83,7 +103,8 @@ mainHs :: Template
 mainHs = toTemplate "Main.hs" [r|
 module Main where
 
-import Azure.Functions.Worker
+import           Azure.Functions.Worker
+import qualified Registry as Registry
 
 main :: IO ()
 main = runWorker
