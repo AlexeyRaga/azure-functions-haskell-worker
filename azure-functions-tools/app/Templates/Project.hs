@@ -65,7 +65,7 @@ common functions
   other-modules:
 
 executable {{name}}
-  import functions
+  import: functions
   default-language: Haskell2010
   main-is: Main.hs
   hs-source-dirs: src
@@ -103,7 +103,7 @@ import           Azure.Functions.Worker
 import qualified Exports as Exports
 
 main :: IO ()
-main = runWorker
+main = runWorker (Exports.functions)
 |]
 --------------------------------------------------------------------------------
 

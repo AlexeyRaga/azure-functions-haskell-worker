@@ -147,7 +147,7 @@ handleWorkerInit msg = do
 handleInvocation :: InvocationRequest -> IO InvocationResponse
 handleInvocation req = do
 
-  let httpReq = fromInvocationRequest @ReceivedMessage req
+  let httpReq = fromInvocationRequest @HttpRequest req
   case httpReq of
     Left err -> pure $
       defMessage @InvocationResponse
@@ -157,8 +157,8 @@ handleInvocation req = do
     Right req' -> do
       -- appendFile "/tmp/msg" ("Converted:\n------------------------------------------------------------\n")
       -- appendFile "/tmp/msg" (show req' <> "\n\n")
-      -- httpResp <- toInvocationResponse <$> fakeHttpFunction req'
-      httpResp <- toInvocationResponse <$> pure ()
+      httpResp <- toInvocationResponse <$> fakeHttpFunction req'
+      -- httpResp <- toInvocationResponse <$> pure ()
       pure $ httpResp & Fields.invocationId .~ (req ^. Fields.invocationId)
 
 -------------------------------------------------------------------------------
