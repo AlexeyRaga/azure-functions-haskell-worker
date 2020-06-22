@@ -20,6 +20,8 @@ executable azure-functions-tools
   other-modules:        Commands.New
                         Commands.Run
                         Patchers.Cabal
+                        Patchers.Indented
+                        Patchers.Haskell
                         Templates.New
                         Templates.Project
                         Templates.Utils

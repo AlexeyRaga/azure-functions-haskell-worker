@@ -25,6 +25,11 @@ library
   hs-source-dirs:       src
   exposed-modules:      Azure.Functions.Contract
                         Azure.Functions.Worker
+                        Azure.Functions.Registry
+                        Azure.Functions.Function
+                        Azure.Functions.Bindings.Class
+                        Azure.Functions.Bindings.HTTP
+                        Azure.Functions.Bindings.ServiceBus
 
   autogen-modules:      Proto.FunctionRpc
                         Proto.FunctionRpc_Fields
@@ -32,12 +37,8 @@ library
                         Proto.Shared.NullableTypes
                         Paths_azure_functions_worker
 
-  other-modules:        Azure.Functions.Bindings.Class
-                        Azure.Functions.Bindings.HTTP
-                        Azure.Functions.Bindings.ServiceBus
-                        Azure.Functions.Commands.Init
+  other-modules:        Azure.Functions.Commands.Init
                         Azure.Functions.Commands.Run
-                        Azure.Functions.Function
                         Azure.Functions.Internal.Lens
                         Azure.Functions.Internal.Templates
                         Proto.FunctionRpc

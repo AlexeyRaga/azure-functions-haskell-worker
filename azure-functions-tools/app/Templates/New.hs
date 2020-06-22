@@ -17,8 +17,8 @@ module Functions.{{moduleName}}
 )
 where
 
-Azure.Functions.Function
-import Azure.Funtions.Bindings.Http
+import Azure.Functions.Function
+import Azure.Functions.Bindings.HTTP
 
 function :: Function HttpBinding HttpBinding HttpRequest HttpResponse
 function = Function

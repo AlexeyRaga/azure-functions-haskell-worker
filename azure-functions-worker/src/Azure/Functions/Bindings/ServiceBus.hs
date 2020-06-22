@@ -11,7 +11,7 @@ import           Azure.Functions.Bindings.Class
 import           Azure.Functions.Internal.Lens  (orError)
 import           Control.Applicative            (Alternative, (<|>))
 import           Control.Arrow                  ((&&&))
-import           Data.Aeson                     (FromJSON, ToJSON (..), decodeStrict', object, (.=))
+import           Data.Aeson                     (FromJSON, ToJSON (..), Value (Null), decodeStrict', object, (.=))
 import           Data.ByteString                (ByteString)
 import           Data.Functor                   ((<&>))
 import           Data.Int                       (Int32, Int64)
@@ -47,11 +47,10 @@ data ServiceBusQueue = ServiceBusQueue
   { serviceBusQueueName :: Text
   }
 
-instance InBinding ServiceBusQueue ReceivedMessage where
-instance OutBinding ServiceBusQueue () where
+instance InBinding ServiceBusQueue ReceivedMessage
 
-instance ToJSON ServiceBusQueue where
-  toJSON v = object
+instance ToInBinding ServiceBusQueue where
+  toInBindingJSON v = object
     [ "name"          .= ("queueTrigger" :: Text)
     , "type"          .= ("serviceBusTrigger" :: Text)
     , "direction"     .= ("in" :: Text)

@@ -7,12 +7,15 @@
 module Azure.Functions.Bindings.HTTP
 ( HttpRequest(..)
 , HttpResponse(..)
+, HttpBinding(..)
 , module Azure.Functions.Bindings.Class
 )
 where
 
 import           Azure.Functions.Bindings.Class
 import           Azure.Functions.Internal.Lens         (toEither)
+import           Data.Aeson                            ((.=))
+import qualified Data.Aeson                            as Aeson
 import           Data.ByteString                       (ByteString)
 import qualified Data.Map                              as Map
 import           Data.Map.Strict                       (Map)
@@ -27,10 +30,7 @@ import           Network.URI                           (URI, parseURI)
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
 
-data HttpBinding  = InHttpBinding
-
-instance InBinding HttpBinding HttpRequest where
-instance OutBinding HttpBinding HttpResponse where
+data HttpBinding  = HttpBinding
 
 data HttpRequest = HttpRequest
   { httpRequestMethod  :: Text
@@ -45,6 +45,23 @@ data HttpResponse = HttpResponse
   , httpResponseBody    :: Maybe ByteString
   , httpResponseHeaders :: Map Text Text
   } deriving (Show, Eq, Generic)
+
+instance InBinding HttpBinding HttpRequest where
+instance OutBinding HttpBinding HttpResponse where
+
+instance ToInBinding HttpBinding where
+  toInBindingJSON _ = Aeson.object
+    [ "type"      .= ("httpTrigger" :: Text)
+    , "direction" .= ("in"          :: Text)
+    , "name"      .= ("req"         :: Text)
+    ]
+
+instance ToOutBinding HttpBinding where
+  toOutBindingJSON _ = Aeson.object
+    [ "type"      .= ("http"    :: Text)
+    , "direction" .= ("out"     :: Text)
+    , "name"      .= ("$return" :: Text)
+    ]
 
 instance FromInvocationRequest HttpRequest where
   fromInvocationRequest req = -- undefined

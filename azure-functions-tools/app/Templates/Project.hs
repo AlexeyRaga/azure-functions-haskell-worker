@@ -71,7 +71,7 @@ executable {{name}}
   hs-source-dirs: src
   ghc-options: -Wall
   other-modules:
-      Registry
+      Exports
   build-depends:
       base                      >= 4.9 && < 5
     , aeson
@@ -79,24 +79,20 @@ executable {{name}}
     , bytestring
     , containers
     , text
-
 |]
 
-registryHs :: Template
-registryHs = toTemplate "Registry.hs" [r|
+exportsHs :: Template
+exportsHs = toTemplate "Exports.hs" [r|
 {-# LANGUAGE OverloadedStrings #-}
-module Registry
+module Exports
 ( functions
 )
 where
 
-import Data.Text (Text)
-import Data.Map.Strict (Map)
-import Azure.Functions.Contract (InvocationRequest, InvocationResponse)
+import Azure.Functions.Registry
 
-functions :: Map Text (InvocationRequest -> IO InvocationResponse)
+functions :: Registry
 functions = mempty
-
 |]
 
 mainHs :: Template
@@ -104,7 +100,7 @@ mainHs = toTemplate "Main.hs" [r|
 module Main where
 
 import           Azure.Functions.Worker
-import qualified Registry as Registry
+import qualified Exports as Exports
 
 main :: IO ()
 main = runWorker

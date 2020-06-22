@@ -12,6 +12,7 @@ import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
 import           Options.Applicative
 import           Patchers.Cabal      as Cabal
+import           Patchers.Haskell    as Haskell
 import           System.Directory    as Dir
 import           System.Exit         (ExitCode (..))
 import           System.FilePath     (takeFileName, (<.>), (</>))
@@ -21,7 +22,7 @@ import qualified Templates.New       as TplNew
 import qualified Templates.Project   as Prj
 import qualified Templates.Utils     as Tpl
 
-newtype FunctionName = FunctionName Text deriving (Show, Eq, Generic)
+newtype FunctionName = FunctionName { unFunctionName :: Text } deriving (Show, Eq, Generic)
 newtype ModuleName = ModuleName Text deriving (Show, Eq, Generic)
 data Options = Options
   { projectDir   :: Maybe FilePath
@@ -71,18 +72,36 @@ runNewCommand opts = do
 
   Dir.createDirectoryIfMissing True functionsDir
 
-  let functionFile = functionsDir </> (Text.unpack modName) <.> "hs"
+  let functionFile = functionsDir </> (Text.unpack (unFunctionName $ name opts)) <.> "hs"
 
   case functionType opts of
     Http       -> Tpl.writeNewFile functionFile TplNew.httpFunction [("moduleName", modName)]
     ServiceBus -> undefined
 
   let cabalFilePath = funcRoot </> projectName <.> "cabal"
-  cabalLines <- Cabal.readCabal cabalFilePath
-  let newCabalLines = Cabal.addFunctionModules cabalLines ["Functions." <> modName]
-  Cabal.writeCabal cabalFilePath newCabalLines
+  Cabal.updateIndentedFile cabalFilePath $ \cabalLines ->
+    Cabal.addFunctionModules cabalLines ["Functions." <> modName]
+
+  let exportsFile = funcRoot </> "src" </> "Exports.hs"
+  Haskell.updateIndentedFile exportsFile $ \exportsLines ->
+    let
+      withImports = Haskell.addToImports exportsLines
+        ["import qualified Functions." <> modName <> " as Functions." <> modName]
+
+    in Haskell.addToFunction "functions = mempty" withImports
+        [  "<> register "
+        <> quoted (unFunctionName (name opts))
+        <> " Functions."
+        <> modName
+        <> "."
+        <> "function"
+        ]
 
 --------------------------------------------------------------------------------
+
+quoted :: Text -> Text
+quoted txt = "\"" <> txt <> "\""
+
 readFunctionName :: String -> Either String FunctionName
 readFunctionName = \case
   [] -> Left "Function name cannot be empty"
