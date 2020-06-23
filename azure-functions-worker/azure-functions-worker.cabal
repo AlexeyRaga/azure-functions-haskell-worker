@@ -40,6 +40,7 @@ library
   other-modules:        Azure.Functions.Commands.Init
                         Azure.Functions.Commands.Run
                         Azure.Functions.Internal.Lens
+                        Azure.Functions.Internal.Runtime
                         Azure.Functions.Internal.Templates
                         Proto.FunctionRpc
                         Proto.FunctionRpc_Fields
@@ -70,6 +71,7 @@ library
                       , proto-lens-runtime            >= 0.6      && < 0.7
                       , proto-lens-protobuf-types     >= 0.6      && < 0.7
                       , raw-strings-qq                >= 1.1      && < 2
+                      , stm
                       , text
                       , time
 

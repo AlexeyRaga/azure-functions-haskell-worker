@@ -21,5 +21,5 @@ runWorker registry = do
 commands :: Registry -> Parser (IO ())
 commands registry = hsubparser
   (  command "init" (info (initCommand registry) idm)
-  <> command "run" (info runCommand idm)
+  <> command "run" (info (runCommand registry) idm)
   )

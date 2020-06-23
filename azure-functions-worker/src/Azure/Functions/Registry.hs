@@ -25,11 +25,14 @@ data RegisteredFunction = RegisteredFunction
   , adaptedFunction   :: InvocationRequest -> IO InvocationResponse
   } deriving (Generic)
 
-
 newtype Registry = Registry
   { registeredFunctions :: Map Text RegisteredFunction
   } deriving (Generic, Semigroup)
     deriving Monoid via (Map Text RegisteredFunction)
+
+getFunction :: Registry -> Text -> Maybe RegisteredFunction
+getFunction registry name =
+  Map.lookup name (registeredFunctions registry)
 
 register :: (InBinding ctxIn i, OutBinding ctxOut o)
   => Text

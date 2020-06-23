@@ -8,7 +8,10 @@
 module Azure.Functions.Commands.Run
 where
 
+import           Azure.Functions.Internal.Runtime   (Runtime, createRuntime, getRuntimeFunction, loadRuntimeFunction, runningFunction)
 import qualified Azure.Functions.Internal.Templates as Tpl
+import           Azure.Functions.Registry           (RegisteredFunction (..), Registry (..))
+import qualified Azure.Functions.Registry           as Registry
 import           Control.Monad                      (void)
 import           Control.Monad.Except               (runExceptT)
 import           Control.Monad.IO.Class             (liftIO)
@@ -28,11 +31,11 @@ import Network.GRPC.Client.Helpers     as GRPC
 import Network.HTTP2.Client            (HostName, PortNumber, TooMuchConcurrency)
 import Network.HTTP2.Client.Exceptions (ClientIO)
 
-import Data.ProtoLens.Runtime.Data.ProtoLens as PL
+import Data.ProtoLens.Runtime.Data.ProtoLens (defMessage)
 
 import           Proto.FunctionRpc
 import qualified Proto.FunctionRpc_Fields  as Fields
-import           Proto.FunctionRpc_Helpers (failureStatus, rpcLogError, rpcLogInfo, toResponse, toResponseLogError')
+import           Proto.FunctionRpc_Helpers (failureStatus, successStatus, toResponse)
 
 import Data.Version                 (showVersion)
 import Paths_azure_functions_worker (version)
@@ -76,17 +79,18 @@ optionsParser = Options
     <> help "The maximum message length to use for gRPC messages"
     )
 
-runCommand :: Parser (IO ())
-runCommand = runRunCommand <$> optionsParser
+runCommand :: Registry -> Parser (IO ())
+runCommand registry = runRunCommand registry <$> optionsParser
 
 data WorkerState = Unitialised | Started
 
-runRunCommand :: Options -> IO ()
-runRunCommand opts = do
+runRunCommand :: Registry -> Options -> IO ()
+runRunCommand registry opts = do
+  runtime <- createRuntime
   let cfg = GRPC.grpcClientConfigSimple (host opts) (port opts) False
 
-  let startMsg  = PL.defMessage @StartStream & Fields.workerId .~ (workerId opts)
-  let initMsg   = PL.defMessage @StreamingMessage
+  let startMsg  = defMessage @StartStream & Fields.workerId .~ (workerId opts)
+  let initMsg   = defMessage @StreamingMessage
                     & Fields.requestId .~ (requestId opts)
                     & Fields.maybe'content .~ Just (StreamingMessage'StartStream startMsg)
 
@@ -94,18 +98,16 @@ runRunCommand opts = do
 
   cres <- runExceptT $ do
     client <- GRPC.setupGrpcClient cfg
-    -- void . notTooMuch $ GRPC.rawUnary rpc client initMsg
-
     notTooMuch $ rawSteppedBidirectional rpc client [initMsg] $ \case
-      []      -> pure ([], WaitOutput (\_ _ -> liftIO . handleEnvelope) (\_ s _ -> pure s))
+      []      -> pure ([], WaitOutput (\_ _ -> liftIO . handleEnvelope registry runtime) (\_ s _ -> pure s))
       (x:xs)  -> pure (xs, SendInput Uncompressed x)
 
 
   print "-----------------------------------------------------------------------------"
   print cres
 
-handleEnvelope :: StreamingMessage -> IO [StreamingMessage]
-handleEnvelope req = do
+handleEnvelope :: Registry -> Runtime -> StreamingMessage -> IO [StreamingMessage]
+handleEnvelope registry runtime req = do
   appendFile "/tmp/msg" ("Request:\n============================================================\n")
   appendFile "/tmp/msg" (show req <> "\n\n")
 
@@ -114,61 +116,51 @@ handleEnvelope req = do
             Nothing -> pure []
             Just c -> case c of
               StreamingMessage'WorkerInitRequest msg   -> sequence [toResponse req <$> handleWorkerInit msg]
-              StreamingMessage'FunctionLoadRequest msg -> sequence [toResponse req <$> handleFunctionLoad msg]
-              StreamingMessage'InvocationRequest msg   -> sequence [toResponse req <$> handleInvocation msg]
+              StreamingMessage'FunctionLoadRequest msg -> sequence [toResponse req <$> handleFunctionLoad registry runtime msg]
+              StreamingMessage'InvocationRequest msg   -> sequence [toResponse req <$> handleInvocation runtime msg]
               msg                                      -> pure []
 
   appendFile "/tmp/msg" ("Response:\n------------------------------------------------------------\n")
   appendFile "/tmp/msg" (show resp <> "\n\n")
   pure resp
 
-
-handleFunctionLoad :: FunctionLoadRequest -> IO FunctionLoadResponse
-handleFunctionLoad req = do
-  let status = defMessage @StatusResult
-                & Fields.status .~ StatusResult'Success
-  let resp = defMessage @FunctionLoadResponse
-                & Fields.functionId .~ (req ^. Fields.functionId)
-                & Fields.result .~ status
-  pure resp
-
 handleWorkerInit :: WorkerInitRequest -> IO WorkerInitResponse
 handleWorkerInit msg = do
-  let status = defMessage @StatusResult
-                & Fields.status .~ StatusResult'Success
-                & Fields.logs .~ [ rpcLogInfo ("Haskell worker loaded, version: " <>  Text.pack (showVersion version))]
   let resp = defMessage @WorkerInitResponse
                 & Fields.workerVersion .~ Text.pack (showVersion version)
-                & Fields.result .~ status
+                & Fields.result .~ successStatus ("Haskell worker loaded, version: " <>  Text.pack (showVersion version))
 
   pure resp
 
+handleFunctionLoad :: Registry -> Runtime -> FunctionLoadRequest -> IO FunctionLoadResponse
+handleFunctionLoad registry runtime req = do
+  let funcName = req ^. Fields.metadata . Fields.name
+  let funcId   = req ^. Fields.functionId
 
-handleInvocation :: InvocationRequest -> IO InvocationResponse
-handleInvocation req = do
+  let resp = defMessage @FunctionLoadResponse
+                & Fields.functionId .~ (req ^. Fields.functionId)
 
-  let httpReq = fromInvocationRequest @HttpRequest req
-  case httpReq of
-    Left err -> pure $
+  case Registry.getFunction registry funcName of
+    Nothing ->
+      pure $ resp & Fields.result .~ failureStatus ("Unable to find function: " <> funcName)
+    Just func -> do
+      loadRuntimeFunction runtime funcId func
+      pure $ resp & Fields.result .~ successStatus ("Loaded function: " <> funcName)
+
+handleInvocation :: Runtime -> InvocationRequest -> IO InvocationResponse
+handleInvocation runtime req = do
+  let funcId   = req ^. Fields.functionId
+  mbFunction <- getRuntimeFunction runtime funcId
+  case mbFunction of
+    Nothing -> pure $
       defMessage @InvocationResponse
         & Fields.invocationId .~ (req ^. Fields.invocationId)
-        & Fields.result .~ failureStatus ("Unable to parse ServiceBus request: " <> err)
-
-    Right req' -> do
-      -- appendFile "/tmp/msg" ("Converted:\n------------------------------------------------------------\n")
-      -- appendFile "/tmp/msg" (show req' <> "\n\n")
-      httpResp <- toInvocationResponse <$> fakeHttpFunction req'
-      -- httpResp <- toInvocationResponse <$> pure ()
-      pure $ httpResp & Fields.invocationId .~ (req ^. Fields.invocationId)
+        & Fields.result .~ failureStatus ("Unable to find running function with ID: " <> funcId)
+    Just rfunc -> do
+      resp <- runningFunction rfunc req
+      pure $ resp & Fields.invocationId .~ (req ^. Fields.invocationId)
 
 -------------------------------------------------------------------------------
-
-fakeHttpFunction :: HttpRequest -> IO HttpResponse
-fakeHttpFunction req = pure HttpResponse
-  { httpResponseStatus = 200
-  , httpResponseBody = httpRequestBody req
-  , httpResponseHeaders = Map.fromList [("X-Powered-By", "Azure Function Haskell Worker")]
-  }
 
 notTooMuch :: ClientIO (Either TooMuchConcurrency a) -> ClientIO a
 notTooMuch f = do

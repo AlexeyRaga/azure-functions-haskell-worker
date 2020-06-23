@@ -75,6 +75,19 @@ rpcLogInfo = rpcLogMessage RpcLog'Information
 rpcLogError :: Text -> RpcLog
 rpcLogError = rpcLogMessage RpcLog'Error
 
+successStatus :: Text -> StatusResult
+successStatus msg =
+  defMessage @StatusResult
+    & status .~ StatusResult'Success
+    & result .~ msg
+    & logs .~ [
+      rpcLogInfo msg
+    ]
+    & exception .~ (
+      defMessage @RpcException
+        & message .~ msg
+    )
+
 failureStatus :: Text -> StatusResult
 failureStatus msg =
   defMessage @StatusResult
