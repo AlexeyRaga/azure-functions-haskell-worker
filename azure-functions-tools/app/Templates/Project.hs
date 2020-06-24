@@ -42,8 +42,11 @@ localSettingsJson = toTemplate "local.settings.json" [r|
 {
   "IsEncrypted": false,
   "Values": {
+      "AzureWebJobsStorage": "UseDevelopmentStorage=true",
       "FUNCTIONS_WORKER_RUNTIME": "haskell",
-      "languageWorkers:workersDirectory": "workers"
+      "languageWorkers:workersDirectory": "workers",
+      "ConnectionStrings": {
+      }
   }
 }
 |]

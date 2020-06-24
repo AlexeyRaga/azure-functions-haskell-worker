@@ -35,3 +35,26 @@ execute request =
         , httpResponseHeaders = mempty
         }
 |]
+
+
+serviceBusFunction :: Template
+serviceBusFunction = toTemplate "ServiceBus Function" [r|
+{-# LANGUAGE OverloadedStrings #-}
+module Functions.{{moduleName}}
+( function
+)
+where
+
+import Azure.Functions.Function
+import Azure.Functions.Bindings.ServiceBus
+
+function :: Function ServiceBusBinding () ReceivedMessage ()
+function = Function
+  { inBinding   = ServiceBusBinding (ConnectionName "{{connectionName}}") (QueueName "{{queueName}}")
+  , outBinding  = ()
+  , func = execute
+  }
+
+execute :: ReceivedMessage -> IO ()
+execute message = putStrLn "Got Message!"
+|]

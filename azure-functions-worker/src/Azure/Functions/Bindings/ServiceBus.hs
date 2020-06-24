@@ -1,10 +1,16 @@
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE StrictData            #-}
-{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE StrictData                 #-}
+{-# LANGUAGE TypeApplications           #-}
 module Azure.Functions.Bindings.ServiceBus
+( QueueName(..)
+, ConnectionName(..)
+, ServiceBusBinding(..)
+, ReceivedMessage(..)
+)
 where
 
 import           Azure.Functions.Bindings.Class
@@ -13,12 +19,14 @@ import           Control.Applicative            (Alternative, (<|>))
 import           Control.Arrow                  ((&&&))
 import           Data.Aeson                     (FromJSON, ToJSON (..), Value (Null), decodeStrict', object, (.=))
 import           Data.ByteString                (ByteString)
+import           Data.Coerce                    (coerce)
 import           Data.Functor                   ((<&>))
 import           Data.Int                       (Int32, Int64)
 import qualified Data.List                      as List
 import           Data.Map.Strict                (Map)
 import qualified Data.Map.Strict                as Map
 import           Data.Maybe                     (fromMaybe)
+import           Data.String                    (IsString)
 import           Data.Text                      (Text)
 import qualified Data.Text                      as Text
 import qualified Data.Text.Encoding             as Text
@@ -43,19 +51,23 @@ labelKey            = "Label"
 correlationIdKey    = "CorrelationId"
 userPropertiesKey   = "UserProperties"
 
-data ServiceBusQueue = ServiceBusQueue
-  { serviceBusQueueName :: Text
+newtype QueueName       = QueueName Text deriving (Show, Eq, IsString, Generic)
+newtype ConnectionName  = ConnectionName Text deriving (Show, Eq, IsString, Generic)
+
+data ServiceBusBinding = ServiceBusBinding
+  { serviceBusConnectionName :: ConnectionName
+  , serviceBusQueueName      :: QueueName
   }
 
-instance InBinding ServiceBusQueue ReceivedMessage
+instance InBinding ServiceBusBinding ReceivedMessage
 
-instance ToInBinding ServiceBusQueue where
+instance ToInBinding ServiceBusBinding where
   toInBindingJSON v = object
     [ "name"          .= ("queueTrigger" :: Text)
     , "type"          .= ("serviceBusTrigger" :: Text)
     , "direction"     .= ("in" :: Text)
-    , "queueName"     .= serviceBusQueueName v
-    , "connection"    .= ("ServiceBus" :: Text)
+    , "queueName"     .= coerce @_ @Text (serviceBusQueueName v)
+    , "connection"    .= coerce @_ @Text (serviceBusConnectionName v)
     , "accessRights"  .= ("Listen" :: Text)
     ]
 

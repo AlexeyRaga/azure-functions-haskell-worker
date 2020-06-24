@@ -1,12 +1,14 @@
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE OverloadedStrings          #-}
 module Commands.New
 where
 
 import           Control.Monad       (filterM, when)
 import           Data.Char           (isAlpha, isAlphaNum)
 import qualified Data.List           as List
+import           Data.String         (IsString)
 import           Data.Text           (Text)
 import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
@@ -22,8 +24,9 @@ import qualified Templates.New       as TplNew
 import qualified Templates.Project   as Prj
 import qualified Templates.Utils     as Tpl
 
-newtype FunctionName = FunctionName { unFunctionName :: Text } deriving (Show, Eq, Generic)
-newtype ModuleName = ModuleName Text deriving (Show, Eq, Generic)
+newtype FunctionName = FunctionName { unFunctionName :: Text } deriving (Show, Eq, IsString, Generic)
+newtype ModuleName   = ModuleName Text deriving (Show, Eq, IsString, Generic)
+
 data Options = Options
   { projectDir   :: Maybe FilePath
   , name         :: FunctionName
@@ -32,7 +35,7 @@ data Options = Options
 
 data FunctionType
   = Http
-  | ServiceBus
+  | ServiceBus Text Text
   deriving (Show, Eq, Generic)
 
 runOptionsParser :: Parser Options
@@ -56,7 +59,17 @@ httpParser :: Parser FunctionType
 httpParser = pure Http
 
 serviceBusParser :: Parser FunctionType
-serviceBusParser = pure ServiceBus
+serviceBusParser = ServiceBus
+  <$> strOption
+        (  long "connection-name"
+        <> metavar "NAME"
+        <> help "Name of the connection string."
+        )
+  <*> strOption
+        (  long "queue-name"
+        <> metavar "NAME"
+        <> help "Name of the queue to consume."
+        )
 
 newCommand :: Parser (IO ())
 newCommand = runNewCommand <$> runOptionsParser
@@ -75,8 +88,14 @@ runNewCommand opts = do
   let functionFile = functionsDir </> (Text.unpack (unFunctionName $ name opts)) <.> "hs"
 
   case functionType opts of
-    Http       -> Tpl.writeNewFile functionFile TplNew.httpFunction [("moduleName", modName)]
-    ServiceBus -> undefined
+    Http ->
+      Tpl.writeNewFile functionFile TplNew.httpFunction [("moduleName", modName)]
+    ServiceBus c n ->
+      Tpl.writeNewFile functionFile TplNew.serviceBusFunction
+        [ ("moduleName", modName)
+        , ("queueName", n)
+        , ("connectionName", c)
+        ]
 
   let cabalFilePath = funcRoot </> projectName <.> "cabal"
   Cabal.updateIndentedFile cabalFilePath $ \cabalLines ->
