@@ -25,7 +25,7 @@ import qualified Templates.Project   as Prj
 import qualified Templates.Utils     as Tpl
 
 newtype FunctionName = FunctionName { unFunctionName :: Text } deriving (Show, Eq, IsString, Generic)
-newtype ModuleName   = ModuleName Text deriving (Show, Eq, IsString, Generic)
+newtype ModuleName   = ModuleName { unModuleName ::  Text } deriving (Show, Eq, IsString, Generic)
 
 data Options = Options
   { projectDir   :: Maybe FilePath
@@ -78,7 +78,7 @@ runNewCommand :: Options -> IO ()
 runNewCommand opts = do
   funcRoot <- maybe Dir.getCurrentDirectory pure (projectDir opts)
   let projectName = takeFileName funcRoot
-  let ModuleName modName = toModuleName (name opts)
+  let modName = toModuleName (name opts)
 
   let srcDir = funcRoot </> "src"
   let functionsDir = srcDir </> "Functions"
@@ -87,35 +87,39 @@ runNewCommand opts = do
 
   let functionFile = functionsDir </> (Text.unpack (unFunctionName $ name opts)) <.> "hs"
 
-  case functionType opts of
-    Http ->
-      Tpl.writeNewFile functionFile TplNew.httpFunction [("moduleName", modName)]
-    ServiceBus c n ->
-      Tpl.writeNewFile functionFile TplNew.serviceBusFunction
-        [ ("moduleName", modName)
-        , ("queueName", n)
-        , ("connectionName", c)
-        ]
+  writeFunctionFile functionFile modName (name opts) (functionType opts)
 
   let cabalFilePath = funcRoot </> projectName <.> "cabal"
   Cabal.updateIndentedFile cabalFilePath $ \cabalLines ->
-    Cabal.addFunctionModules cabalLines ["Functions." <> modName]
+    Cabal.addFunctionModules cabalLines ["Functions." <> unModuleName modName]
 
   let exportsFile = funcRoot </> "src" </> "Exports.hs"
   Haskell.updateIndentedFile exportsFile $ \exportsLines ->
     let
       withImports = Haskell.addToImports exportsLines
-        ["import qualified Functions." <> modName <> " as Functions." <> modName]
+        ["import qualified Functions." <> unModuleName modName <> " as Functions." <> unModuleName modName]
 
     in Haskell.addToFunction "functions = mempty" withImports
         [  "<> register "
         <> quoted (unFunctionName (name opts))
         <> " Functions."
-        <> modName
+        <> unModuleName modName
         <> "."
         <> "function"
         ]
 
+writeFunctionFile :: FilePath -> ModuleName -> FunctionName -> FunctionType -> IO ()
+writeFunctionFile functionFile (ModuleName modName) (FunctionName funcName) = \case
+  Http ->
+    Tpl.writeNewFile functionFile TplNew.httpFunction
+      [ ("moduleName", modName)]
+
+  ServiceBus connectionName queueName ->
+    Tpl.writeNewFile functionFile TplNew.serviceBusFunction
+      [ ("moduleName", modName)
+      , ("queueName", queueName)
+      , ("connectionName", connectionName)
+      ]
 --------------------------------------------------------------------------------
 
 quoted :: Text -> Text
