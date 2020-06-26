@@ -8,26 +8,28 @@ module Azure.Functions.Bindings.Blob
 ( ConnectionName(..)
 , BlobBinding(..)
 , ReceivedBlob(..)
+, Blob(..)
 )
 where
 
 import           Azure.Functions.Bindings.Class
 import           Azure.Functions.Bindings.Shared
-import           Azure.Functions.Internal.Lens   (orError)
-import           Control.Arrow                   ((&&&))
-import           Data.Aeson                      (FromJSON, ToJSON (..), Value (Null), decodeStrict', object, (.=))
-import           Data.ByteString                 (ByteString)
-import           Data.Coerce                     (coerce)
-import           Data.Functor                    ((<&>))
-import           Data.Map.Strict                 (Map)
-import qualified Data.Map.Strict                 as Map
-import qualified Data.Set                        as Set
-import           Data.Text                       (Text)
-import qualified Data.Text.Encoding              as Text
-import           GHC.Generics                    (Generic)
-import           Lens.Family                     (view, (&), (^.))
-import           Lens.Family.Stock               (at)
-import           Network.URI                     (URI, parseURI)
+import           Azure.Functions.Internal.Lens         (orError)
+import           Control.Arrow                         ((&&&))
+import           Data.Aeson                            (FromJSON, ToJSON (..), Value (Null), decodeStrict', object, (.=))
+import           Data.ByteString                       (ByteString)
+import           Data.Coerce                           (coerce)
+import           Data.Functor                          ((<&>))
+import           Data.Map.Strict                       (Map)
+import qualified Data.Map.Strict                       as Map
+import           Data.ProtoLens.Runtime.Data.ProtoLens (defMessage)
+import qualified Data.Set                              as Set
+import           Data.Text                             (Text)
+import qualified Data.Text.Encoding                    as Text
+import           GHC.Generics                          (Generic)
+import           Lens.Family                           (view, (&), (.~), (^.))
+import           Lens.Family.Stock                     (at)
+import           Network.URI                           (URI, parseURI)
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
 
@@ -46,13 +48,27 @@ data ReceivedBlob = ReceivedBlob
   , receivedBlobProperties      :: Value
   } deriving (Show, Generic)
 
+data Blob = Blob
+  { sentBlobContent  :: ByteString
+  } deriving (Show, Generic)
+
 instance InBinding BlobBinding ReceivedBlob where
+instance OutBinding BlobBinding Blob where
 
 instance ToInBinding BlobBinding where
   toInBindingJSON v = object
     [ "type"        .= ("blobTrigger" :: Text)
     , "direction"   .= ("in" :: Text)
     , "name"        .= ("blobData" :: Text)
+    , "path"        .= blobBindingPathPattern v
+    , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
+    ]
+
+instance ToOutBinding BlobBinding where
+  toOutBindingJSON v = object
+    [ "type"        .= ("blob" :: Text)
+    , "direction"   .= ("out" :: Text)
+    , "name"        .= ("$return" :: Text)
     , "path"        .= blobBindingPathPattern v
     , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
     ]
@@ -78,6 +94,17 @@ instance FromInvocationRequest ReceivedBlob where
       , receivedBlobTriggerMetadata = Map.withoutKeys tmeta (Set.fromList ["Properties", "sys", "Metadata", "BlobTrigger"]) & Map.mapMaybe getText
       , receivedBlobProperties      = props
       }
+
+instance ToInvocationResponse Blob where
+  toInvocationResponse resp =
+    let
+      td = defMessage @TypedData
+              & maybe'data' .~ Just (TypedData'Bytes (sentBlobContent resp))
+
+    in defMessage @InvocationResponse
+        & returnValue .~ td
+        & result .~ (defMessage @StatusResult & status .~ StatusResult'Success)
+
 
 decodeJson :: FromJSON a => TypedData -> Maybe a
 decodeJson d =
