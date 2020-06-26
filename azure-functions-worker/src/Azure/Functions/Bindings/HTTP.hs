@@ -79,12 +79,9 @@ instance ToInvocationResponse HttpResponse where
               & headers .~ httpResponseHeaders resp
               & body .~ td
 
-      stts = defMessage @StatusResult
-              & status .~ StatusResult'Success
-
     in defMessage @InvocationResponse
-        & returnValue .~ (defMessage @TypedData & http .~ ht)
-        & result .~ stts
+        & returnValue .~ (defMessage & http .~ ht)
+        & result .~ (defMessage & status .~ StatusResult'Success)
 
 fromRpcHttp :: RpcHttp -> Either Text HttpRequest
 fromRpcHttp req = do

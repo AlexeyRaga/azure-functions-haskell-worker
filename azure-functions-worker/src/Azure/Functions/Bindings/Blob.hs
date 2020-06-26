@@ -103,23 +103,5 @@ instance ToInvocationResponse Blob where
 
     in defMessage @InvocationResponse
         & returnValue .~ td
-        & result .~ (defMessage @StatusResult & status .~ StatusResult'Success)
+        & result .~ (defMessage & status .~ StatusResult'Success)
 
-
-decodeJson :: FromJSON a => TypedData -> Maybe a
-decodeJson d =
-  d ^. maybe'json >>= decodeStrict' . Text.encodeUtf8
-
-getText :: TypedData -> Maybe Text
-getText d =
-  d ^. maybe'data' >>= \case
-    TypedData'String v  -> Just v
-    TypedData'Json v    -> Just v
-    _                   -> Nothing
-
-getBytes :: TypedData -> Maybe ByteString
-getBytes td =
-  td ^. maybe'data' >>= \case
-    TypedData'Bytes v  -> Just v
-    TypedData'Stream v -> Just v
-    _                  -> Nothing

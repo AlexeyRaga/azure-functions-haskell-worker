@@ -116,30 +116,3 @@ instance FromInvocationRequest ReceivedMessage where
           , receivedMessageCorrelationId    = metadata ^. at correlationIdKey >>= getText
           , receivedMessageUserProperties   = metadata ^. at userPropertiesKey >>= decodeJson & fromMaybe mempty
           }
-
-readPrimitiveData :: Read a => TypedData -> Maybe a
-readPrimitiveData d =
-  case (d ^. maybe'data') of
-    Just (TypedData'String v) -> readMaybe (Text.unpack v)
-    Just (TypedData'Json v)   -> readMaybe (Text.unpack v)
-    _                         -> Nothing
-
-getText :: TypedData -> Maybe Text
-getText d =
-  d ^. maybe'data' >>= \case
-    TypedData'String v  -> Just v
-    TypedData'Json v    -> Just v
-    _                   -> Nothing
-
-readText :: Read a => TypedData -> Maybe a
-readText d =
-  d ^.  maybe'string >>= readMaybe . Text.unpack
-
-decodeJson :: FromJSON a => TypedData -> Maybe a
-decodeJson d =
-  d ^. maybe'json >>= decodeStrict' . Text.encodeUtf8
-
-infixl 3 <||>
-(<||>) :: Alternative f => (a -> f x) -> (a -> f x) -> a -> f x
-f <||> g = \a -> f a <|> g a
-{-# INLINE (<||>) #-}
