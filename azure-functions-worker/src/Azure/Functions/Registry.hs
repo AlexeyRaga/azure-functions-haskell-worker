@@ -3,6 +3,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE StrictData                 #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE NamedFieldPuns             #-}
 module Azure.Functions.Registry
 where
 
@@ -19,11 +21,12 @@ import qualified Proto.FunctionRpc_Fields              as Fields
 import           Data.ProtoLens.Runtime.Data.ProtoLens (defMessage)
 import           Proto.FunctionRpc_Helpers             (failureStatus)
 
-data RegisteredFunction = RegisteredFunction
-  { adaptedInBinding  :: Value
-  , adaptedOutBinding :: Value
-  , adaptedFunction   :: InvocationRequest -> IO InvocationResponse
-  } deriving (Generic)
+data RegisteredFunction = forall env. RegisteredFunction
+  { registeredInBinding   :: Value
+  , registeredOutBinding  :: Value
+  , registeredEnvFactory  :: IO env
+  , registeredFunction    :: env -> InvocationRequest -> IO InvocationResponse
+  }
 
 newtype Registry = Registry
   { registeredFunctions :: Map Text RegisteredFunction
@@ -36,22 +39,22 @@ getFunction registry name =
 
 register :: (InBinding ctxIn i, OutBinding ctxOut o)
   => Text
-  -> Function ctxIn ctxOut i o
+  -> Function ctxIn ctxOut env i o
   -> Registry
 register functionName function =
   Registry $ Map.singleton functionName RegisteredFunction
-    { adaptedInBinding = toInBindingJSON (inBinding function)
-    , adaptedOutBinding = toOutBindingJSON (outBinding function)
-    , adaptedFunction = invoke
+    { registeredInBinding      = toInBindingJSON (inBinding function)
+    , registeredOutBinding     = toOutBindingJSON (outBinding function)
+    , registeredEnvFactory  = initEnv function
+    , registeredFunction       = invoke
     }
   where
-    invoke req = do
+    invoke ctx req = do
       case fromInvocationRequest req of
         Left err -> pure $
           defMessage
             & Fields.invocationId .~ (req ^. Fields.invocationId)
             & Fields.result .~ failureStatus ("Unable to parse request: " <> err)
         Right req' -> do
-          resp <- toInvocationResponse <$> (func function) req'
+          resp <- toInvocationResponse <$> (func function ctx) req'
           pure $ resp & Fields.invocationId .~ (req ^. Fields.invocationId)
-          pure resp

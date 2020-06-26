@@ -36,6 +36,7 @@ data Options = Options
 data FunctionType
   = Http
   | ServiceBus Text Text
+  | Blob Text Text
   deriving (Show, Eq, Generic)
 
 runOptionsParser :: Parser Options
@@ -53,6 +54,7 @@ runOptionsParser = Options
   <*> subparser
         (  command "http" (info httpParser idm)
         <> command "service-bus" (info serviceBusParser idm)
+        <> command "blob" (info blobParser idm)
         )
 
 httpParser :: Parser FunctionType
@@ -69,6 +71,19 @@ serviceBusParser = ServiceBus
         (  long "queue-name"
         <> metavar "NAME"
         <> help "Name of the queue to consume."
+        )
+
+blobParser :: Parser FunctionType
+blobParser = Blob
+  <$> strOption
+        (  long "connection-name"
+        <> metavar "NAME"
+        <> help "Name of the connection string."
+        )
+  <*> strOption
+        (  long "name-pattern"
+        <> metavar "PATTERN"
+        <> help "The container to monitor. May be a blob name pattern."
         )
 
 newCommand :: Parser (IO ())
@@ -119,6 +134,13 @@ writeFunctionFile functionFile (ModuleName modName) (FunctionName funcName) = \c
       [ ("moduleName", modName)
       , ("queueName", queueName)
       , ("connectionName", connectionName)
+      ]
+
+  Blob connectionName namePattern ->
+    Tpl.writeNewFile functionFile TplNew.blobFunction
+      [ ("moduleName", modName)
+      , ("connectionName", connectionName)
+      , ("namePattern", namePattern)
       ]
 --------------------------------------------------------------------------------
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData        #-}
 module Azure.Functions.Internal.Runtime
@@ -27,9 +28,10 @@ createRuntime :: IO Runtime
 createRuntime = Runtime <$> newTVarIO mempty
 
 loadRuntimeFunction :: Runtime -> FunctionId -> RegisteredFunction -> IO ()
-loadRuntimeFunction runtime fid f =
+loadRuntimeFunction runtime fid RegisteredFunction{registeredEnvFactory, registeredFunction} = do
+  func <- registeredFunction <$> registeredEnvFactory
   atomically $ do
-    modifyTVar' (runtimeFunctions runtime) $ Map.insert fid (RunningFunction $ adaptedFunction f)
+    modifyTVar' (runtimeFunctions runtime) $ Map.insert fid (RunningFunction func)
 
 getRuntimeFunction :: Runtime -> FunctionId -> IO (Maybe RunningFunction)
 getRuntimeFunction runtime fid = do

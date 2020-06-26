@@ -68,20 +68,16 @@ initRegisteredFunction path functionName function = do
 
   createDirectoryIfMissing True functionPath
 
-  functionJsonExists <- doesFileExist jsonFile
-  unless functionJsonExists $
-    Aeson.encodeFile jsonFile $
-      object  [ "generatedBy" .= ("azure-functions-haskell-worker" :: Text)
-              , "disabled" .= False
-              , "bindings" .= filter (/= Null)
-                                [ adaptedInBinding function
-                                , adaptedOutBinding function
-                                ]
-              ]
+  Aeson.encodeFile jsonFile $
+    object  [ "generatedBy" .= ("azure-functions-haskell-worker" :: Text)
+            , "disabled" .= False
+            , "bindings" .= filter (/= Null)
+                              [ registeredInBinding function
+                              , registeredOutBinding function
+                              ]
+            ]
 
-  functionFileExists <- doesFileExist functionFile
-  unless functionFileExists $
-    Text.writeFile functionFile ""
+  Text.writeFile functionFile ""
 
 
 

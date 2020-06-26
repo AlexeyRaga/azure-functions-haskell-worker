@@ -14,29 +14,30 @@ module Azure.Functions.Bindings.ServiceBus
 where
 
 import           Azure.Functions.Bindings.Class
-import           Azure.Functions.Internal.Lens  (orError)
-import           Control.Applicative            (Alternative, (<|>))
-import           Control.Arrow                  ((&&&))
-import           Data.Aeson                     (FromJSON, ToJSON (..), Value (Null), decodeStrict', object, (.=))
-import           Data.ByteString                (ByteString)
-import           Data.Coerce                    (coerce)
-import           Data.Functor                   ((<&>))
-import           Data.Int                       (Int32, Int64)
-import qualified Data.List                      as List
-import           Data.Map.Strict                (Map)
-import qualified Data.Map.Strict                as Map
-import           Data.Maybe                     (fromMaybe)
-import           Data.String                    (IsString)
-import           Data.Text                      (Text)
-import qualified Data.Text                      as Text
-import qualified Data.Text.Encoding             as Text
-import           Data.Time                      (UTCTime)
-import           GHC.Generics                   (Generic)
-import           Lens.Family                    (view, (&), (^.))
-import           Lens.Family.Stock              (at)
+import           Azure.Functions.Bindings.Shared
+import           Azure.Functions.Internal.Lens   (orError)
+import           Control.Applicative             (Alternative, (<|>))
+import           Control.Arrow                   ((&&&))
+import           Data.Aeson                      (FromJSON, ToJSON (..), Value (Null), decodeStrict', object, (.=))
+import           Data.ByteString                 (ByteString)
+import           Data.Coerce                     (coerce)
+import           Data.Functor                    ((<&>))
+import           Data.Int                        (Int32, Int64)
+import qualified Data.List                       as List
+import           Data.Map.Strict                 (Map)
+import qualified Data.Map.Strict                 as Map
+import           Data.Maybe                      (fromMaybe)
+import           Data.String                     (IsString)
+import           Data.Text                       (Text)
+import qualified Data.Text                       as Text
+import qualified Data.Text.Encoding              as Text
+import           Data.Time                       (UTCTime)
+import           GHC.Generics                    (Generic)
+import           Lens.Family                     (view, (&), (^.))
+import           Lens.Family.Stock               (at)
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
-import           Text.Read                      (readMaybe)
+import           Text.Read                       (readMaybe)
 
 deliveryCountKey    = "DeliveryCount"
 deadLetterSourceKey = "DeadLetterSource"
@@ -52,7 +53,6 @@ correlationIdKey    = "CorrelationId"
 userPropertiesKey   = "UserProperties"
 
 newtype QueueName       = QueueName Text deriving (Show, Eq, IsString, Generic)
-newtype ConnectionName  = ConnectionName Text deriving (Show, Eq, IsString, Generic)
 
 data ServiceBusBinding = ServiceBusBinding
   { serviceBusConnectionName :: ConnectionName

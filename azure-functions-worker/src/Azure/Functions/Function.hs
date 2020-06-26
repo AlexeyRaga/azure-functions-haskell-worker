@@ -1,9 +1,10 @@
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE StrictData             #-}
+{-# LANGUAGE DeriveGeneric             #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FunctionalDependencies    #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE StrictData                #-}
 module Azure.Functions.Function
 where
 
@@ -20,15 +21,10 @@ import           Proto.FunctionRpc
 import qualified Proto.FunctionRpc_Fields              as Fields
 import           Proto.FunctionRpc_Helpers             (failureStatus, rpcLogError, rpcLogInfo, toResponse, toResponseLogError')
 
-data Function ctxIn ctxOut i o = Function
+data Function ctxIn ctxOut env i o = Function
   { inBinding  :: ctxIn
   , outBinding :: ctxOut
-  , func       :: i -> IO o
-  } deriving (Generic)
+  , initEnv    :: IO env
+  , func       :: env -> i -> IO o
+  }
 
-mkFunction :: (InBinding ctxIn i, OutBinding ctxOut o)
-  => ctxIn
-  -> ctxOut
-  -> (i -> IO o)
-  -> Function ctxIn ctxOut i o
-mkFunction inBinding outBinding func = Function{..}
