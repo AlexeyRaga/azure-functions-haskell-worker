@@ -12,7 +12,9 @@ import           Azure.Functions.Internal.Runtime   (Runtime, createRuntime, get
 import qualified Azure.Functions.Internal.Templates as Tpl
 import           Azure.Functions.Registry           (RegisteredFunction (..), Registry (..))
 import qualified Azure.Functions.Registry           as Registry
-import           Control.Monad                      (void)
+import           Control.Concurrent.Async           (async, link)
+import           Control.Concurrent.Chan            (newChan, readChan, writeChan)
+import           Control.Monad                      (forM_, mapM_, void)
 import           Control.Monad.Except               (runExceptT)
 import           Control.Monad.IO.Class             (liftIO)
 import qualified Data.Map.Strict                    as Map
@@ -86,7 +88,9 @@ data WorkerState = Unitialised | Started
 
 runRunCommand :: Registry -> Options -> IO ()
 runRunCommand registry opts = do
-  runtime <- createRuntime
+  runtime                <- createRuntime
+  outgoingMessageChannel <- newChan
+
   let cfg = GRPC.grpcClientConfigSimple (host opts) (port opts) False
 
   let startMsg  = defMessage @StartStream & Fields.workerId .~ (workerId opts)
@@ -94,17 +98,34 @@ runRunCommand registry opts = do
                     & Fields.requestId .~ (requestId opts)
                     & Fields.maybe'content .~ Just (StreamingMessage'StartStream startMsg)
 
+  writeChan outgoingMessageChannel initMsg
+
   let rpc = RPC :: RPC FunctionRpc "eventStream"
-
-  cres <- runExceptT $ do
+  void $ runExceptT $ do
     client <- GRPC.setupGrpcClient cfg
-    notTooMuch $ rawSteppedBidirectional rpc client [initMsg] $ \case
-      []      -> pure ([], WaitOutput (\_ _ -> liftIO . handleEnvelope registry runtime) (\_ s _ -> pure s))
-      (x:xs)  -> pure (xs, SendInput Uncompressed x)
 
+    notTooMuch $ rawGeneralStream rpc client
+      outgoingMessageChannel      -- incoming messages loop state, handler needs to write to the channel
+      (handleIncoming runtime)    -- incoming messages loop
+      outgoingMessageChannel      -- outgoing messages loop state, reads messages from the channel and sends the,
+      handleOutgoing              -- outgoing messages loop
 
   print "-----------------------------------------------------------------------------"
-  print cres
+
+  where
+    handleIncoming runtime chan = \case
+      RecvMessage msg ->  do
+        liftIO $ runAsync $ do
+          out <- handleEnvelope registry runtime msg
+          forM_ out (writeChan chan)
+        pure chan
+      _ -> pure chan
+
+    handleOutgoing chan = do
+      msg <- liftIO (readChan chan)
+      pure (chan, SendMessage Uncompressed msg)
+
+    runAsync f = async f >>= link
 
 handleEnvelope :: Registry -> Runtime -> StreamingMessage -> IO [StreamingMessage]
 handleEnvelope registry runtime req = do
