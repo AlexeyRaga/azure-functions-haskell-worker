@@ -37,16 +37,16 @@ getFunction :: Registry -> Text -> Maybe RegisteredFunction
 getFunction registry name =
   Map.lookup name (registeredFunctions registry)
 
-register :: (InBinding ctxIn i, OutBinding ctxOut o)
+register :: (InMessage i, OutMessage o)
   => Text
-  -> Function ctxIn ctxOut env i o
+  -> Function env i o
   -> Registry
 register functionName function =
   Registry $ Map.singleton functionName RegisteredFunction
-    { registeredInBinding      = toInBindingJSON (inBinding function)
-    , registeredOutBinding     = toOutBindingJSON (outBinding function)
+    { registeredInBinding   = toInBindingJSON (inBinding function)
+    , registeredOutBinding  = toOutBindingJSON (outBinding function)
     , registeredEnvFactory  = initEnv function
-    , registeredFunction       = invoke
+    , registeredFunction    = invoke
     }
   where
     invoke ctx req = do
@@ -58,3 +58,4 @@ register functionName function =
         Right req' -> do
           resp <- toInvocationResponse <$> (func function ctx) req'
           pure $ resp & Fields.invocationId .~ (req ^. Fields.invocationId)
+

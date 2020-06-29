@@ -5,6 +5,7 @@
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE TypeApplications           #-}
+{-# LANGUAGE TypeFamilies               #-}
 module Azure.Functions.Bindings.ServiceBus
 ( QueueName(..)
 , ConnectionName(..)
@@ -59,8 +60,6 @@ data ServiceBusBinding = ServiceBusBinding
   , serviceBusQueueName      :: QueueName
   }
 
-instance InBinding ServiceBusBinding ReceivedMessage
-
 instance ToInBinding ServiceBusBinding where
   toInBindingJSON v = object
     [ "name"          .= ("queueTrigger" :: Text)
@@ -87,7 +86,8 @@ data ReceivedMessage = ReceivedMessage
   , receivedMessageUserProperties   :: Map Text Text   -- ^ The application specific message properties.
   } deriving (Show, Eq, Generic)
 
-instance FromInvocationRequest ReceivedMessage where
+instance InMessage ReceivedMessage where
+  type InBinding ReceivedMessage = ServiceBusBinding
   fromInvocationRequest req = do
     let idata = req ^. inputData <&> (view name &&& view data') & Map.fromList
     let metadata = req ^. triggerMetadata

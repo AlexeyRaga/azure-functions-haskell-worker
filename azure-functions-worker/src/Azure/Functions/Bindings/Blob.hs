@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE StrictData            #-}
 {-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Azure.Functions.Bindings.Blob
 ( ConnectionName(..)
 , BlobBinding(..)
@@ -33,7 +34,6 @@ import           Network.URI                           (URI, parseURI)
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
 
-
 data BlobBinding = BlobBinding
   { blobBindingConnectionName :: ConnectionName
   , blobBindingPathPattern    :: Text
@@ -51,9 +51,6 @@ data ReceivedBlob = ReceivedBlob
 data Blob = Blob
   { sentBlobContent  :: ByteString
   } deriving (Show, Generic)
-
-instance InBinding BlobBinding ReceivedBlob where
-instance OutBinding BlobBinding Blob where
 
 instance ToInBinding BlobBinding where
   toInBindingJSON v = object
@@ -73,7 +70,8 @@ instance ToOutBinding BlobBinding where
     , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
     ]
 
-instance FromInvocationRequest ReceivedBlob where
+instance InMessage ReceivedBlob where
+  type InBinding ReceivedBlob = BlobBinding
   fromInvocationRequest req = do
     let idata = req ^. inputData <&> (view name &&& view data') & Map.fromList
     let tmeta = req ^. triggerMetadata
@@ -95,7 +93,8 @@ instance FromInvocationRequest ReceivedBlob where
       , receivedBlobProperties      = props
       }
 
-instance ToInvocationResponse Blob where
+instance OutMessage Blob where
+  type OutBinding Blob = BlobBinding
   toInvocationResponse resp =
     let
       td = defMessage @TypedData

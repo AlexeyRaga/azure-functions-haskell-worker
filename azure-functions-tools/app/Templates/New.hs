@@ -22,12 +22,10 @@ import Azure.Functions.Bindings.HTTP
 
 -- | A function is parametrised with:
 --
--- * An input binding type  (how to gen an input message)
--- * An output binding type (how to use the result of the function)
 -- * An envitonment initialisation action (how to create a context that is shared between functions' invocations)
--- * An input message type (relevant to the input context type via 'InBinding' instance)
--- * An output message type (relevant to the output context type via 'OutBinding' instance)
-function :: Function HttpBinding HttpBinding () HttpRequest HttpResponse
+-- * An input message type (relevant to the input binding type via 'InBinding')
+-- * An output message type (relevant to the output binding type via 'OutBinding')
+function :: Function () HttpRequest HttpResponse
 function = Function
   { inBinding   = HttpBinding           -- Input binding
   , outBinding  = HttpBinding           -- Output binding
@@ -58,12 +56,10 @@ import Azure.Functions.Bindings.ServiceBus
 
 -- | A function is parametrised with:
 --
--- * An input binding type (how to gen an input message)
--- * An output binding type (how to use the result of the function)
 -- * An envitonment initialisation action (how to create a context that is shared between functions' invocations)
--- * An input message type (relevant to the input context type via 'InBinding' instance)
--- * An output message type (relevant to the output context type via 'OutBinding' instance)
-function :: Function ServiceBusBinding () () ReceivedMessage ()
+-- * An input message type (relevant to the input binding type via 'InBinding')
+-- * An output message type (relevant to the output binding type via 'OutBinding')
+function :: Function () ReceivedMessage ()
 function = Function
   { inBinding   = ServiceBusBinding (ConnectionName "{{connectionName}}") (QueueName "{{queueName}}")
   , outBinding  = ()
@@ -88,12 +84,10 @@ import Azure.Functions.Bindings.Blob
 
 -- | A function is parametrised with:
 --
--- * An input binding type (how to gen an input message)
--- * An output binding type (how to use the result of the function)
 -- * An envitonment initialisation action (how to create a context that is shared between functions' invocations)
--- * An input message type (relevant to the input context type via 'InBinding' instance)
--- * An output message type (relevant to the output context type via 'OutBinding' instance)
-function :: Function BlobBinding () () ReceivedBlob ()
+-- * An input message type (relevant to the input binding type via 'InBinding' instance)
+-- * An output message type (relevant to the output binding type via 'OutBinding' instance)
+function :: Function () ReceivedBlob ()
 function = Function
   { inBinding   = BlobBinding (ConnectionName "{{connectionName}}") "{{namePattern}}"
   , outBinding  = ()

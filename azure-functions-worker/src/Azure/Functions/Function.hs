@@ -21,10 +21,9 @@ import           Proto.FunctionRpc
 import qualified Proto.FunctionRpc_Fields              as Fields
 import           Proto.FunctionRpc_Helpers             (failureStatus, rpcLogError, rpcLogInfo, toResponse, toResponseLogError')
 
-data Function ctxIn ctxOut env i o = Function
-  { inBinding  :: ctxIn
-  , outBinding :: ctxOut
+data Function env i o = Function
+  { inBinding  :: InBinding i
+  , outBinding :: OutBinding o
   , initEnv    :: IO env
   , func       :: env -> i -> IO o
   }
-

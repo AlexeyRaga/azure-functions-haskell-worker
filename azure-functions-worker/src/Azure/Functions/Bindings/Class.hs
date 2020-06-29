@@ -1,22 +1,19 @@
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE TypeApplications       #-}
+-- {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Azure.Functions.Bindings.Class
 where
 
 import Data.Aeson                            (ToJSON, Value (Null))
 import Data.ProtoLens.Runtime.Data.ProtoLens (defMessage)
+import Data.Proxy                            (Proxy)
 import Data.Text                             (Text)
 import GHC.Generics                          (Generic)
 import Lens.Family                           ((&), (.~))
 import Proto.FunctionRpc
 import Proto.FunctionRpc_Fields
-
-class FromInvocationRequest a where
-  fromInvocationRequest :: InvocationRequest -> Either Text a
-
-class ToInvocationResponse a where
-  toInvocationResponse :: a -> InvocationResponse
 
 class ToInBinding ctx where
   toInBindingJSON :: ctx -> Value
@@ -24,15 +21,20 @@ class ToInBinding ctx where
 class ToOutBinding ctx where
   toOutBindingJSON :: ctx -> Value
 
-class (ToInBinding ctx, FromInvocationRequest value) => InBinding ctx value  | ctx -> value where
-class (ToOutBinding ctx, ToInvocationResponse value) => OutBinding ctx value | ctx -> value where
+class (ToInBinding (InBinding a)) => InMessage a where
+  type InBinding a :: *
+  fromInvocationRequest :: InvocationRequest -> Either Text a
 
-instance ToInvocationResponse () where
+class (ToOutBinding (OutBinding a)) => OutMessage a where
+  type OutBinding a
+  toInvocationResponse :: a -> InvocationResponse
+
+instance OutMessage () where
+  type OutBinding () = ()
   toInvocationResponse _ =
-    let stts = defMessage @StatusResult & status .~ StatusResult'Success
-    in defMessage @InvocationResponse & result .~ stts
+    defMessage @InvocationResponse
+      & result .~ (defMessage & status .~ StatusResult'Success)
 
 instance ToOutBinding () where
   toOutBindingJSON _ = Null
 
-instance OutBinding () ()

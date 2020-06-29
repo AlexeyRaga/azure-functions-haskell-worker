@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE StrictData            #-}
 {-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Azure.Functions.Bindings.HTTP
 ( HttpRequest(..)
 , HttpResponse(..)
@@ -46,8 +47,27 @@ data HttpResponse = HttpResponse
   , httpResponseHeaders :: Map Text Text
   } deriving (Show, Eq, Generic)
 
-instance InBinding HttpBinding HttpRequest where
-instance OutBinding HttpBinding HttpResponse where
+instance InMessage HttpRequest where
+  type InBinding HttpRequest = HttpBinding
+  fromInvocationRequest req =
+    req ^. triggerMetadata . at "$request" . toEither "Unable to find $request parameter"
+        >>= view (maybe'http . toEither "Unexpected payload, RpcHttp is expected")
+        >>= fromRpcHttp
+
+instance OutMessage HttpResponse where
+  type OutBinding HttpResponse = HttpBinding
+  toInvocationResponse resp =
+    let
+      td = defMessage @TypedData
+              & maybe'data' .~ fmap TypedData'Bytes (httpResponseBody resp)
+
+      ht = defMessage @RpcHttp
+              & headers .~ httpResponseHeaders resp
+              & body .~ td
+
+    in defMessage @InvocationResponse
+        & returnValue .~ (defMessage & http .~ ht)
+        & result .~ (defMessage & status .~ StatusResult'Success)
 
 instance ToInBinding HttpBinding where
   toInBindingJSON _ = Aeson.object
@@ -62,26 +82,6 @@ instance ToOutBinding HttpBinding where
     , "direction" .= ("out"     :: Text)
     , "name"      .= ("$return" :: Text)
     ]
-
-instance FromInvocationRequest HttpRequest where
-  fromInvocationRequest req = -- undefined
-    req ^. triggerMetadata . at "$request" . toEither "Unable to find $request parameter"
-        >>= view (maybe'http . toEither "Unexpected payload, RpcHttp is expected")
-        >>= fromRpcHttp
-
-instance ToInvocationResponse HttpResponse where
-  toInvocationResponse resp =
-    let
-      td = defMessage @TypedData
-              & maybe'data' .~ fmap TypedData'Bytes (httpResponseBody resp)
-
-      ht = defMessage @RpcHttp
-              & headers .~ httpResponseHeaders resp
-              & body .~ td
-
-    in defMessage @InvocationResponse
-        & returnValue .~ (defMessage & http .~ ht)
-        & result .~ (defMessage & status .~ StatusResult'Success)
 
 fromRpcHttp :: RpcHttp -> Either Text HttpRequest
 fromRpcHttp req = do
