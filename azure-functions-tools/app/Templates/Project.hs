@@ -108,8 +108,55 @@ import qualified Exports as Exports
 main :: IO ()
 main = runWorker (Exports.functions)
 |]
---------------------------------------------------------------------------------
+
+dockerfile :: Template
+dockerfile = toTemplate "Dockerfile" [r|
+# syntax=docker/dockerfile:experimental
+FROM quay.io/haskell_works/ghc-8.6.5 as build-image
+
+RUN apt-get update \
+    && apt-get install -y protobuf-compiler
+
+WORKDIR /src
+COPY . /src
+
+RUN --mount=type=cache,target=/root/.cabal \
+    ["cabal", "update"]
+
+RUN --mount=type=cache,target=/root/.cabal \
+    ["cabal", "build"]
+
+RUN --mount=type=cache,target=/root/.cabal \
+    ["cabal", "run", "exe:{{name}}", "--", "init", "--script-root", "/home/site/wwwroot"]
 
 
+FROM mcr.microsoft.com/azure-functions/base:2.0 as runtime-image
 
+FROM mcr.microsoft.com/dotnet/core/runtime-deps:2.2
+
+ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
+    HOME=/home \
+    FUNCTIONS_WORKER_RUNTIME=haskell \
+    languageWorkers__workersDirectory=/home/site/wwwroot/workers
+
+# Copy the Azure Functions host from the runtime image
+COPY --from=runtime-image [ "/azure-functions-host", "/azure-functions-host" ]
+
+# Copy the script root contents from the build image
+COPY --from=build-image ["/home/site/wwwroot", "/home/site/wwwroot"]
+
+WORKDIR /home/site/wwwroot
+CMD [ "/azure-functions-host/Microsoft.Azure.WebJobs.Script.WebHost" ]
+|]
+
+dockerignore :: Template
+dockerignore = toTemplate ".dockerignore" [r|
+dist/
+dist-newstyle/
+.git/
+.vscode/
+.circleci/
+.dockerignore
+.Dockerfile
+|]
 

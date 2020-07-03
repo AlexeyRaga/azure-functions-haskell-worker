@@ -100,7 +100,7 @@ runNewCommand opts = do
 
   Dir.createDirectoryIfMissing True functionsDir
 
-  let functionFile = functionsDir </> (Text.unpack (unFunctionName $ name opts)) <.> "hs"
+  let functionFile = functionsDir </> (Text.unpack (unModuleName modName)) <.> "hs"
 
   writeFunctionFile functionFile modName (name opts) (functionType opts)
 

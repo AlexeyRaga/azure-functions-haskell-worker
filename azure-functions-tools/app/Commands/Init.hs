@@ -47,5 +47,8 @@ runInitCommand opts = do
   Tpl.writeFileIfNotExist (projectRoot </> "src" </> "Main.hs") Prj.mainHs []
   Tpl.writeFileIfNotExist (projectRoot </> "src" </> "Exports.hs") Prj.exportsHs []
 
+  Tpl.writeFileIfNotExist (projectRoot </> "Dockerfile") Prj.dockerfile [("name", Text.pack name)]
+  Tpl.writeFileIfNotExist (projectRoot </> ".dockerignore") Prj.dockerignore []
+
 
 
