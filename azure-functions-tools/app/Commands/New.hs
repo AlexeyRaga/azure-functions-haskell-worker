@@ -12,6 +12,7 @@ import           Data.String         (IsString)
 import           Data.Text           (Text)
 import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
+import qualified Log                 as Log
 import           Options.Applicative
 import           Patchers.Cabal      as Cabal
 import           Patchers.Haskell    as Haskell

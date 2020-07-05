@@ -6,6 +6,7 @@ where
 import           Control.Monad       (when)
 import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
+import qualified Log                 as Log
 import           Options.Applicative
 import           System.Directory    as Dir
 import           System.FilePath     (takeFileName, (<.>), (</>))
@@ -39,6 +40,8 @@ runInitCommand opts = do
 
   let name = takeFileName projectRoot
 
+  Log.report . Text.pack $ "Initializing project: " <> name <> " in " <> projectRoot
+
   Tpl.writeFileIfNotExist (projectRoot </> "host.json") Prj.hostJson []
   Tpl.writeFileIfNotExist (projectRoot </> "local.settings.json") Prj.localSettingsJson []
 
@@ -49,6 +52,8 @@ runInitCommand opts = do
 
   Tpl.writeFileIfNotExist (projectRoot </> "Dockerfile") Prj.dockerfile [("name", Text.pack name)]
   Tpl.writeFileIfNotExist (projectRoot </> ".dockerignore") Prj.dockerignore []
+
+  Log.report . Text.pack $ "Project initialised: " <> name <> " in " <> projectRoot
 
 
 

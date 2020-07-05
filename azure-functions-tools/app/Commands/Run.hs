@@ -7,6 +7,7 @@ import           Control.Monad       (filterM, when)
 import qualified Data.List           as List
 import qualified Data.Text           as Text
 import           GHC.Generics        (Generic)
+import qualified Log                 as Log
 import           Options.Applicative
 import           System.Directory    as Dir
 import           System.Exit         (ExitCode (..))
