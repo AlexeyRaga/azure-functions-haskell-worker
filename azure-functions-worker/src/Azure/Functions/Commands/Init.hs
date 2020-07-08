@@ -71,10 +71,11 @@ initRegisteredFunction path functionName function = do
   Aeson.encodeFile jsonFile $
     object  [ "generatedBy" .= ("azure-functions-haskell-worker" :: Text)
             , "disabled" .= False
-            , "bindings" .= filter (/= Null)
+            , "bindings" .= filter (/= Null) ( mconcat
                               [ registeredInBinding function
                               , registeredOutBinding function
                               ]
+                            )
             ]
 
   Text.writeFile functionFile ""

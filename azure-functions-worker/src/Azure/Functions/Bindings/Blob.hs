@@ -53,8 +53,19 @@ data Blob = Blob
   } deriving (Show, Generic)
 
 instance ToInBinding BlobBinding where
-  toInBindingJSON v = object
-    [ "type"        .= ("blobTrigger" :: Text)
+  toInBindingJSON v =
+    [ object
+      [ "type"        .= ("blobTrigger" :: Text)
+      , "direction"   .= ("in" :: Text)
+      , "name"        .= ("blobData" :: Text)
+      , "path"        .= blobBindingPathPattern v
+      , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
+      ]
+    ]
+
+instance ToTrigger BlobBinding where
+  toTriggerJSON v = object
+    [ "type"        .= ("blob" :: Text)
     , "direction"   .= ("in" :: Text)
     , "name"        .= ("blobData" :: Text)
     , "path"        .= blobBindingPathPattern v
@@ -62,12 +73,14 @@ instance ToInBinding BlobBinding where
     ]
 
 instance ToOutBinding BlobBinding where
-  toOutBindingJSON v = object
-    [ "type"        .= ("blob" :: Text)
-    , "direction"   .= ("out" :: Text)
-    , "name"        .= ("$return" :: Text)
-    , "path"        .= blobBindingPathPattern v
-    , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
+  toOutBindingJSON v =
+    [ object
+      [ "type"        .= ("blob" :: Text)
+      , "direction"   .= ("out" :: Text)
+      , "name"        .= ("$return" :: Text)
+      , "path"        .= blobBindingPathPattern v
+      , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
+      ]
     ]
 
 instance InMessage ReceivedBlob where
@@ -96,11 +109,7 @@ instance InMessage ReceivedBlob where
 instance OutMessage Blob where
   type OutBinding Blob = BlobBinding
   toInvocationResponse resp =
-    let
-      td = defMessage @TypedData
+    [ defMessage @TypedData
               & maybe'data' .~ Just (TypedData'Bytes (sentBlobContent resp))
-
-    in defMessage @InvocationResponse
-        & returnValue .~ td
-        & result .~ (defMessage & status .~ StatusResult'Success)
+    ]
 

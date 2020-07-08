@@ -60,8 +60,8 @@ data ServiceBusBinding = ServiceBusBinding
   , serviceBusQueueName      :: QueueName
   }
 
-instance ToInBinding ServiceBusBinding where
-  toInBindingJSON v = object
+instance ToTrigger ServiceBusBinding where
+  toTriggerJSON v = object
     [ "name"          .= ("queueTrigger" :: Text)
     , "type"          .= ("serviceBusTrigger" :: Text)
     , "direction"     .= ("in" :: Text)
@@ -86,9 +86,9 @@ data ReceivedMessage = ReceivedMessage
   , receivedMessageUserProperties   :: Map Text Text   -- ^ The application specific message properties.
   } deriving (Show, Eq, Generic)
 
-instance InMessage ReceivedMessage where
-  type InBinding ReceivedMessage = ServiceBusBinding
-  fromInvocationRequest req = do
+instance TriggerMessage ReceivedMessage where
+  type Trigger ReceivedMessage = ServiceBusBinding
+  fromTriggerInvocationRequest req = do
     let idata = req ^. inputData <&> (view name &&& view data') & Map.fromList
     let metadata = req ^. triggerMetadata
 

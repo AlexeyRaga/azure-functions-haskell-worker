@@ -1,17 +1,20 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE OverloadedStrings          #-}
 module Azure.Functions.Bindings.Shared
 where
 
-import           Control.Applicative      (Alternative, (<|>))
-import           Data.Aeson               (FromJSON, decodeStrict')
-import           Data.ByteString          (ByteString)
-import           Data.String              (IsString)
-import           Data.Text                (Text)
-import qualified Data.Text.Encoding       as Text
-import           GHC.Generics             (Generic)
-import           Lens.Family              ((^.))
+import           Azure.Functions.Bindings.Class
+import           Control.Applicative            (Alternative, (<|>))
+import           Data.Aeson                     (FromJSON, decodeStrict')
+import           Data.ByteString                (ByteString)
+import           Data.String                    (IsString)
+import           Data.Text                      (Text)
+import qualified Data.Text                      as Text
+import qualified Data.Text.Encoding             as Text
+import           GHC.Generics                   (Generic)
+import           Lens.Family                    ((^.))
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
 

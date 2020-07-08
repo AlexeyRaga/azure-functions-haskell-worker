@@ -47,9 +47,9 @@ data HttpResponse = HttpResponse
   , httpResponseHeaders :: Map Text Text
   } deriving (Show, Eq, Generic)
 
-instance InMessage HttpRequest where
-  type InBinding HttpRequest = HttpBinding
-  fromInvocationRequest req =
+instance TriggerMessage HttpRequest where
+  type Trigger HttpRequest = HttpBinding
+  fromTriggerInvocationRequest req =
     req ^. triggerMetadata . at "$request" . toEither "Unable to find $request parameter"
         >>= view (maybe'http . toEither "Unexpected payload, RpcHttp is expected")
         >>= fromRpcHttp
@@ -65,22 +65,22 @@ instance OutMessage HttpResponse where
               & headers .~ httpResponseHeaders resp
               & body .~ td
 
-    in defMessage @InvocationResponse
-        & returnValue .~ (defMessage & http .~ ht)
-        & result .~ (defMessage & status .~ StatusResult'Success)
+    in [defMessage & http .~ ht]
 
-instance ToInBinding HttpBinding where
-  toInBindingJSON _ = Aeson.object
-    [ "type"      .= ("httpTrigger" :: Text)
-    , "direction" .= ("in"          :: Text)
-    , "name"      .= ("req"         :: Text)
-    ]
+instance ToTrigger HttpBinding where
+  toTriggerJSON _ = Aeson.object
+        [ "type"      .= ("httpTrigger" :: Text)
+        , "direction" .= ("in"          :: Text)
+        , "name"      .= ("req"         :: Text)
+        ]
 
 instance ToOutBinding HttpBinding where
-  toOutBindingJSON _ = Aeson.object
-    [ "type"      .= ("http"    :: Text)
-    , "direction" .= ("out"     :: Text)
-    , "name"      .= ("$return" :: Text)
+  toOutBindingJSON _ =
+    [ Aeson.object
+      [ "type"      .= ("http"    :: Text)
+      , "direction" .= ("out"     :: Text)
+      , "name"      .= ("$return" :: Text)
+      ]
     ]
 
 fromRpcHttp :: RpcHttp -> Either Text HttpRequest

@@ -19,6 +19,7 @@ where
 
 import Azure.Functions.Function
 import Azure.Functions.Bindings.HTTP
+import Data.Text (Text)
 
 -- | A function is parametrised with:
 --
@@ -33,13 +34,13 @@ function = Function
   , func        = const execute         -- A function that takes an environment and an input and produces the result
   }
 
-execute :: HttpRequest -> IO HttpResponse
-execute request =
-  pure HttpResponse
-        { httpResponseStatus  = 200
-        , httpResponseBody    = httpRequestBody request   -- echo the request
-        , httpResponseHeaders = mempty
-        }
+execute :: HttpRequest -> IO (Either Text HttpResponse)
+execute request = pure . Right $
+  HttpResponse
+    { httpResponseStatus  = 200
+    , httpResponseBody    = httpRequestBody request   -- echo the request
+    , httpResponseHeaders = mempty
+    }
 |]
 
 
@@ -53,6 +54,7 @@ where
 
 import Azure.Functions.Function
 import Azure.Functions.Bindings.ServiceBus
+import Data.Text (Text)
 
 -- | A function is parametrised with:
 --
@@ -67,8 +69,8 @@ function = Function
   , func        = const execute
   }
 
-execute :: ReceivedMessage -> IO ()
-execute message = putStrLn "Got Message!"
+execute :: ReceivedMessage -> IO (Either Text ())
+execute message = Right <$> putStrLn "Got Message!"
 |]
 
 blobFunction :: Template
@@ -81,6 +83,7 @@ where
 
 import Azure.Functions.Function
 import Azure.Functions.Bindings.Blob
+import Data.Text (Text)
 
 -- | A function is parametrised with:
 --
@@ -95,6 +98,6 @@ function = Function
   , func        = const execute
   }
 
-execute :: ReceivedBlob -> IO ()
-execute message = putStrLn "Got Blob!"
+execute :: ReceivedBlob -> IO (Either Text ())
+execute message = Right <$> putStrLn "Got Blob!"
 |]

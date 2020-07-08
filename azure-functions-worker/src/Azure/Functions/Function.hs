@@ -21,9 +21,10 @@ import           Proto.FunctionRpc
 import qualified Proto.FunctionRpc_Fields              as Fields
 import           Proto.FunctionRpc_Helpers             (failureStatus, rpcLogError, rpcLogInfo, toResponse, toResponseLogError')
 
-data Function env i o = Function
-  { inBinding  :: InBinding i
+data Function env t i o = Function
+  { trigger    :: Trigger t
+  , inBinding  :: InBinding i
   , outBinding :: OutBinding o
   , initEnv    :: IO env
-  , func       :: env -> i -> IO o
+  , func       :: env -> i -> IO (Either Text o)
   }
