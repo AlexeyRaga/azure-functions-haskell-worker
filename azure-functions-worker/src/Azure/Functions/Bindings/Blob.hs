@@ -83,8 +83,8 @@ instance ToOutBinding BlobBinding where
       ]
     ]
 
-instance InMessage ReceivedBlob where
-  type InBinding ReceivedBlob = BlobBinding
+instance Trigger ReceivedBlob where
+  type TriggerBinding ReceivedBlob = BlobBinding
   fromInvocationRequest req = do
     let idata = req ^. inputData <&> (view name &&& view data') & Map.fromList
     let tmeta = req ^. triggerMetadata
@@ -106,9 +106,9 @@ instance InMessage ReceivedBlob where
       , receivedBlobProperties      = props
       }
 
-instance OutMessage Blob where
+instance Output Blob where
   type OutBinding Blob = BlobBinding
-  toInvocationResponse resp =
+  toOutputData resp =
     [ defMessage @TypedData
               & maybe'data' .~ Just (TypedData'Bytes (sentBlobContent resp))
     ]

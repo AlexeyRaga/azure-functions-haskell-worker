@@ -26,12 +26,13 @@ import Data.Text (Text)
 -- * An envitonment initialisation action (how to create a context that is shared between functions' invocations)
 -- * An input message type (relevant to the input binding type via 'InBinding')
 -- * An output message type (relevant to the output binding type via 'OutBinding')
-function :: Function () HttpRequest HttpResponse
+function :: Function () HttpRequest () HttpResponse
 function = Function
-  { inBinding   = HttpBinding           -- Input binding
-  , outBinding  = HttpBinding           -- Output binding
-  , initEnv     = pure ()               -- A function to initialize the environment for a given function
-  , func        = const execute         -- A function that takes an environment and an input and produces the result
+  { trigger  = HttpBinding                  -- What triggers the function
+  , inputs   = ()                           -- Input bindings
+  , outputs  = HttpBinding                  -- Output bindings
+  , initEnv  = pure ()                      -- A function to initialize the environment for a given function
+  , func     = \_env t _ins -> execute t    -- A function that takes an environment, trigger and inputs, and produces the result
   }
 
 execute :: HttpRequest -> IO (Either Text HttpResponse)
@@ -61,12 +62,13 @@ import Data.Text (Text)
 -- * An envitonment initialisation action (how to create a context that is shared between functions' invocations)
 -- * An input message type (relevant to the input binding type via 'InBinding')
 -- * An output message type (relevant to the output binding type via 'OutBinding')
-function :: Function () ReceivedMessage ()
+function :: Function () ReceivedMessage () ()
 function = Function
-  { inBinding   = ServiceBusBinding (ConnectionName "{{connectionName}}") (QueueName "{{queueName}}")
-  , outBinding  = ()
-  , initEnv     = pure ()
-  , func        = const execute
+  { trigger  = ServiceBusBinding (ConnectionName "{{connectionName}}") (QueueName "{{queueName}}")
+  , inputs   = ()
+  , outputs  = ()
+  , initEnv  = pure ()
+  , func     = \_env t _ins -> execute t
   }
 
 execute :: ReceivedMessage -> IO (Either Text ())
@@ -90,12 +92,13 @@ import Data.Text (Text)
 -- * An envitonment initialisation action (how to create a context that is shared between functions' invocations)
 -- * An input message type (relevant to the input binding type via 'InBinding' instance)
 -- * An output message type (relevant to the output binding type via 'OutBinding' instance)
-function :: Function () ReceivedBlob ()
+function :: Function () ReceivedBlob () ()
 function = Function
-  { inBinding   = BlobBinding (ConnectionName "{{connectionName}}") "{{namePattern}}"
-  , outBinding  = ()
-  , initEnv     = pure ()
-  , func        = const execute
+  { trigger  = BlobBinding (ConnectionName "{{connectionName}}") "{{namePattern}}"
+  , inputs   = ()
+  , outputs  = ()
+  , initEnv  = pure ()
+  , func     = \_env t _ins -> execute t
   }
 
 execute :: ReceivedBlob -> IO (Either Text ())

@@ -47,16 +47,16 @@ data HttpResponse = HttpResponse
   , httpResponseHeaders :: Map Text Text
   } deriving (Show, Eq, Generic)
 
-instance TriggerMessage HttpRequest where
-  type Trigger HttpRequest = HttpBinding
-  fromTriggerInvocationRequest req =
+instance Trigger HttpRequest where
+  type TriggerBinding HttpRequest = HttpBinding
+  fromInvocationRequest req =
     req ^. triggerMetadata . at "$request" . toEither "Unable to find $request parameter"
         >>= view (maybe'http . toEither "Unexpected payload, RpcHttp is expected")
         >>= fromRpcHttp
 
-instance OutMessage HttpResponse where
+instance Output HttpResponse where
   type OutBinding HttpResponse = HttpBinding
-  toInvocationResponse resp =
+  toOutputData resp =
     let
       td = defMessage @TypedData
               & maybe'data' .~ fmap TypedData'Bytes (httpResponseBody resp)

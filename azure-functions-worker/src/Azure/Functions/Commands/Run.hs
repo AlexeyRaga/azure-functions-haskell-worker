@@ -42,7 +42,7 @@ import           Proto.FunctionRpc_Helpers (failureStatus, successStatus, toResp
 import Data.Version                 (showVersion)
 import Paths_azure_functions_worker (version)
 
-import Azure.Functions.Bindings.Class      (fromInvocationRequest, toInvocationResponse)
+import Azure.Functions.Bindings.Class      (fromInputData, toOutputData)
 import Azure.Functions.Bindings.HTTP       (HttpRequest (..), HttpResponse (..))
 import Azure.Functions.Bindings.ServiceBus (ReceivedMessage (..))
 

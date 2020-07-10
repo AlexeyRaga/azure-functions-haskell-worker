@@ -86,9 +86,9 @@ data ReceivedMessage = ReceivedMessage
   , receivedMessageUserProperties   :: Map Text Text   -- ^ The application specific message properties.
   } deriving (Show, Eq, Generic)
 
-instance TriggerMessage ReceivedMessage where
-  type Trigger ReceivedMessage = ServiceBusBinding
-  fromTriggerInvocationRequest req = do
+instance Trigger ReceivedMessage where
+  type TriggerBinding ReceivedMessage = ServiceBusBinding
+  fromInvocationRequest req = do
     let idata = req ^. inputData <&> (view name &&& view data') & Map.fromList
     let metadata = req ^. triggerMetadata
 

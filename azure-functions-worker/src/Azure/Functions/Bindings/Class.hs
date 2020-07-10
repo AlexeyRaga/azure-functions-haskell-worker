@@ -1,6 +1,6 @@
--- {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
@@ -21,13 +21,14 @@ import           GHC.Generics                          (Generic)
 import           Lens.Family                           ((&), (.~))
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
+import           Text.Printf                           (printf)
 
 class ToTrigger a where
   toTriggerJSON :: a -> Value
 
-class (ToTrigger (Trigger a)) => TriggerMessage a where
-  type Trigger a :: *
-  fromTriggerInvocationRequest :: InvocationRequest -> Either Text a
+class (ToTrigger (TriggerBinding a)) => Trigger a where
+  type TriggerBinding a :: *
+  fromInvocationRequest :: InvocationRequest -> Either Text a
 
 class ToInBinding a where
   toInBindingJSON :: a -> [Value]
@@ -35,24 +36,24 @@ class ToInBinding a where
 class ToOutBinding a where
   toOutBindingJSON :: a -> [Value]
 
-class (ToInBinding (InBinding a)) => InMessage a where
+class (ToInBinding (InBinding a)) => Input a where
   type InBinding a :: *
-  fromInvocationRequest :: InvocationRequest -> Either Text a
+  fromInputData :: [TypedData] -> Either Text (a, [TypedData])
 
-class (ToOutBinding (OutBinding a)) => OutMessage a where
+class (ToOutBinding (OutBinding a)) => Output a where
   type OutBinding a
-  toInvocationResponse :: a -> [TypedData]
+  toOutputData :: a -> [TypedData]
 
-instance OutMessage () where
+instance Output () where
   type OutBinding () = ()
-  toInvocationResponse _ = []
+  toOutputData _ = []
 
 instance ToOutBinding () where
   toOutBindingJSON _ = []
 
-instance InMessage () where
+instance Input () where
   type InBinding () = ()
-  fromInvocationRequest _ = Right ()
+  fromInputData xs = Right ((), xs)
 
 instance ToInBinding () where
   toInBindingJSON _ = []
@@ -64,9 +65,12 @@ instance (ToInBinding a, ToInBinding b) => ToInBinding (a, b) where
     , toInBindingJSON b
     ]
 
-instance (InMessage a, InMessage b) => InMessage (a, b) where
+instance (Input a, Input b) => Input (a, b) where
   type InBinding (a, b) = (InBinding a, InBinding b)
-  fromInvocationRequest req = undefined
+  fromInputData as = do
+      (a, as1) <- fromInputData as
+      (b, as2) <- fromInputData as1
+      pure ((a, b), as2)
 
 instance (ToOutBinding a, ToOutBinding b) => ToOutBinding (a, b) where
   toOutBindingJSON (a, b) = mconcat
@@ -74,14 +78,29 @@ instance (ToOutBinding a, ToOutBinding b) => ToOutBinding (a, b) where
     , toOutBindingJSON b
     ]
 
-instance (OutMessage a, OutMessage b) => OutMessage (a, b) where
+instance (Output a, Output b) => Output (a, b) where
   type OutBinding (a, b) = (OutBinding a, OutBinding b)
-  toInvocationResponse (a, b) = mconcat
-    [ toInvocationResponse a
-    , toInvocationResponse b
+  toOutputData (a, b) = mconcat
+    [ toOutputData a
+    , toOutputData b
     ]
 
 ------------------------------ THREE TUPLE ------------------------------------
+instance (ToInBinding a, ToInBinding b, ToInBinding c) => ToInBinding (a, b, c) where
+  toInBindingJSON (a, b, c) = mconcat
+    [ toInBindingJSON a
+    , toInBindingJSON b
+    , toInBindingJSON c
+    ]
+
+instance (Input a, Input b, Input c) => Input (a, b, c) where
+  type InBinding (a, b, c) = (InBinding a, InBinding b, InBinding c)
+  fromInputData as = do
+      (a, as1) <- fromInputData as
+      (b, as2) <- fromInputData as1
+      (c, as3) <- fromInputData as2
+      pure ((a, b, c), as3)
+
 instance (ToOutBinding a, ToOutBinding b, ToOutBinding c) => ToOutBinding (a, b, c) where
   toOutBindingJSON (a, b, c) = mconcat
     [ toOutBindingJSON a
@@ -89,15 +108,32 @@ instance (ToOutBinding a, ToOutBinding b, ToOutBinding c) => ToOutBinding (a, b,
     , toOutBindingJSON c
     ]
 
-instance (OutMessage a, OutMessage b, OutMessage c) => OutMessage (a, b, c) where
+instance (Output a, Output b, Output c) => Output (a, b, c) where
   type OutBinding (a, b, c) = (OutBinding a, OutBinding b, OutBinding c)
-  toInvocationResponse (a, b, c) = mconcat
-    [ toInvocationResponse a
-    , toInvocationResponse b
-    , toInvocationResponse c
+  toOutputData (a, b, c) = mconcat
+    [ toOutputData a
+    , toOutputData b
+    , toOutputData c
     ]
 
 ------------------------------ FOUR TUPLE -------------------------------------
+instance (ToInBinding a, ToInBinding b, ToInBinding c, ToInBinding d) => ToInBinding (a, b, c, d) where
+  toInBindingJSON (a, b, c, d) = mconcat
+    [ toInBindingJSON a
+    , toInBindingJSON b
+    , toInBindingJSON c
+    , toInBindingJSON d
+    ]
+
+instance (Input a, Input b, Input c, Input d) => Input (a, b, c, d) where
+  type InBinding (a, b, c, d) = (InBinding a, InBinding b, InBinding c, InBinding d)
+  fromInputData as = do
+      (a, as1) <- fromInputData as
+      (b, as2) <- fromInputData as1
+      (c, as3) <- fromInputData as2
+      (d, as4) <- fromInputData as3
+      pure ((a, b, c, d), as4)
+
 instance (ToOutBinding a, ToOutBinding b, ToOutBinding c, ToOutBinding d) => ToOutBinding (a, b, c, d) where
   toOutBindingJSON (a, b, c, d) = mconcat
     [ toOutBindingJSON a
@@ -106,23 +142,25 @@ instance (ToOutBinding a, ToOutBinding b, ToOutBinding c, ToOutBinding d) => ToO
     , toOutBindingJSON d
     ]
 
-instance (OutMessage a, OutMessage b, OutMessage c, OutMessage d) => OutMessage (a, b, c, d) where
+instance (Output a, Output b, Output c, Output d) => Output (a, b, c, d) where
   type OutBinding (a, b, c, d) = (OutBinding a, OutBinding b, OutBinding c, OutBinding d)
-  toInvocationResponse (a, b, c, d) = mconcat
-    [ toInvocationResponse a
-    , toInvocationResponse b
-    , toInvocationResponse c
-    , toInvocationResponse d
+  toOutputData (a, b, c, d) = mconcat
+    [ toOutputData a
+    , toOutputData b
+    , toOutputData c
+    , toOutputData d
     ]
 
-mkInvocationResponse :: OutMessage a => a -> InvocationResponse
+-------------------------------------------------------------------------------
+
+mkInvocationResponse :: Output a => a -> InvocationResponse
 mkInvocationResponse msg =
   defMessage @InvocationResponse
     & maybe'returnValue .~ res
     & outputData .~ parms
     & result .~ (defMessage & status .~ StatusResult'Success)
   where
-    datas = toInvocationResponse msg
+    datas = toOutputData msg
     mkParamName i = Text.pack ("out_" <> show i)
     mkParameterBinding n v = defMessage @ParameterBinding & name .~ n & data' .~ v
     (_, res, parms) = foldr' (\x (i, res, out) ->
@@ -132,16 +170,16 @@ mkInvocationResponse msg =
 
 encodeInputBindings :: ToInBinding a => a -> [Value]
 encodeInputBindings a =
-  zip [0..] (toInBindingJSON a)
+  zip [(0::Int) ..] (toInBindingJSON a)
     & fmap (\(i, x) -> setName (mkName i) x)
   where
     setName name (Object vs) = Object $ HashMap.insert "name" (String name) vs
-    mkName i = Text.pack ("in_" <> show i)
+    mkName i = Text.pack ("in_" <> printf "%02d" i)
 
 encodeOutputBindings :: ToOutBinding a => a -> [Value]
 encodeOutputBindings a =
-  snd $ foldr' (\x (i, res) -> (i+1, setName (mkName i) x : res)) (0, []) (toOutBindingJSON a)
+  snd $ foldr' (\x (i, res) -> (i+1, setName (mkName i) x : res)) (0::Int, []) (toOutBindingJSON a)
   where
     setName name (Object vs) = Object $ HashMap.insert "name" (String name) vs
-    mkName i = if i == 0 then "$return" else Text.pack ("out_" <> show i)
+    mkName i = if i == 0 then "$return" else Text.pack ("out_" <> printf "%02d" i)
 
