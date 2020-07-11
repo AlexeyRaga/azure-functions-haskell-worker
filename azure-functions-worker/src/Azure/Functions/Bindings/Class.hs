@@ -161,7 +161,7 @@ mkInvocationResponse msg =
     & result .~ (defMessage & status .~ StatusResult'Success)
   where
     datas = toOutputData msg
-    mkParamName i = Text.pack ("out_" <> show i)
+    mkParamName i = Text.pack ("out" <> show i)
     mkParameterBinding n v = defMessage @ParameterBinding & name .~ n & data' .~ v
     (_, res, parms) = foldr' (\x (i, res, out) ->
       if i == 0
@@ -174,12 +174,12 @@ encodeInputBindings a =
     & fmap (\(i, x) -> setName (mkName i) x)
   where
     setName name (Object vs) = Object $ HashMap.insert "name" (String name) vs
-    mkName i = Text.pack ("in_" <> printf "%02d" i)
+    mkName i = Text.pack ("in" <> printf "%02d" i)
 
 encodeOutputBindings :: ToOutBinding a => a -> [Value]
 encodeOutputBindings a =
   snd $ foldr' (\x (i, res) -> (i+1, setName (mkName i) x : res)) (0::Int, []) (toOutBindingJSON a)
   where
     setName name (Object vs) = Object $ HashMap.insert "name" (String name) vs
-    mkName i = if i == 0 then "$return" else Text.pack ("out_" <> printf "%02d" i)
+    mkName i = if i == 0 then "$return" else Text.pack ("out" <> printf "%02d" i)
 

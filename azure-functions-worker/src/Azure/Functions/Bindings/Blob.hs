@@ -8,7 +8,7 @@
 module Azure.Functions.Bindings.Blob
 ( ConnectionName(..)
 , BlobBinding(..)
-, ReceivedBlob(..)
+, BlobContent(..)
 , Blob(..)
 )
 where
@@ -39,8 +39,8 @@ data BlobBinding = BlobBinding
   , blobBindingPathPattern    :: Text
   } deriving (Generic)
 
-data ReceivedBlob = ReceivedBlob
-  { receivedBlobContent         :: ByteString
+data Blob = Blob
+  { receivedBlobContent         :: BlobContent
   , receivedBlobName            :: Text
   , receivedBlobUri             :: URI
   , receivedBlobMetadata        :: Map Text Text
@@ -48,14 +48,14 @@ data ReceivedBlob = ReceivedBlob
   , receivedBlobProperties      :: Value
   } deriving (Show, Generic)
 
-data Blob = Blob
-  { sentBlobContent  :: ByteString
+newtype BlobContent = BlobContent
+  { unBlobContent  :: ByteString
   } deriving (Show, Generic)
 
 instance ToInBinding BlobBinding where
   toInBindingJSON v =
     [ object
-      [ "type"        .= ("blobTrigger" :: Text)
+      [ "type"        .= ("blob" :: Text)
       , "direction"   .= ("in" :: Text)
       , "name"        .= ("blobData" :: Text)
       , "path"        .= blobBindingPathPattern v
@@ -65,9 +65,9 @@ instance ToInBinding BlobBinding where
 
 instance ToTrigger BlobBinding where
   toTriggerJSON v = object
-    [ "type"        .= ("blob" :: Text)
+    [ "type"        .= ("blobTrigger" :: Text)
     , "direction"   .= ("in" :: Text)
-    , "name"        .= ("blobData" :: Text)
+    , "name"        .= ("blobTrigger" :: Text)
     , "path"        .= blobBindingPathPattern v
     , "connection"  .= coerce @_ @Text (blobBindingConnectionName v)
     ]
@@ -83,22 +83,22 @@ instance ToOutBinding BlobBinding where
       ]
     ]
 
-instance Trigger ReceivedBlob where
-  type TriggerBinding ReceivedBlob = BlobBinding
+instance Trigger Blob where
+  type TriggerBinding Blob = BlobBinding
   fromInvocationRequest req = do
     let idata = req ^. inputData <&> (view name &&& view data') & Map.fromList
     let tmeta = req ^. triggerMetadata
 
     let orMissing fld = orError ("Unable to parse " <> fld)
 
-    content <- idata ^. at "blobData"    >>= getBytes         & orMissing "blobData"
+    content <- idata ^. at "blobTrigger" >>= getBytes         & orMissing "blobTrigger"
     name    <- tmeta ^. at "BlobTrigger" >>= getText          & orMissing "BlobTrigger"
     uri     <- tmeta ^. at "Uri" >>= decodeJson >>= parseURI  & orMissing "Uri"
     props   <- tmeta ^. at "Properties" >>= decodeJson        & maybe (pure Null) pure
     bmeta   <- tmeta ^. at "Metadata" >>= decodeJson          & maybe (pure mempty) pure
 
-    pure ReceivedBlob
-      { receivedBlobContent         = content
+    pure Blob
+      { receivedBlobContent         = BlobContent content
       , receivedBlobName            = name
       , receivedBlobUri             = uri
       , receivedBlobMetadata        = bmeta
@@ -106,10 +106,18 @@ instance Trigger ReceivedBlob where
       , receivedBlobProperties      = props
       }
 
-instance Output Blob where
-  type OutBinding Blob = BlobBinding
-  toOutputData resp =
-    [ defMessage @TypedData
-              & maybe'data' .~ Just (TypedData'Bytes (sentBlobContent resp))
+instance Input BlobContent where
+  type InBinding BlobContent = BlobBinding
+  fromInputData []     = Left "Unvalid inputs: No input bindings for BlobBinding"
+  fromInputData (a:as) =
+    case getBytes a of
+      Nothing -> Left "Unepected blob data, unable to convert to ByteString"
+      Just bs -> Right (BlobContent bs, as)
+
+
+instance Output BlobContent where
+  type OutBinding BlobContent = BlobBinding
+  toOutputData (BlobContent bs) =
+    [ defMessage & maybe'data' .~ Just (TypedData'Bytes bs)
     ]
 

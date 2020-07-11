@@ -7,7 +7,8 @@ where
 
 import           Azure.Functions.Bindings.Class
 import           Control.Applicative            (Alternative, (<|>))
-import           Data.Aeson                     (FromJSON, decodeStrict')
+import           Data.Aeson                     (FromJSON, Value (Null), decodeStrict', object)
+import           Data.Aeson.Types               (Pair (..))
 import           Data.ByteString                (ByteString)
 import           Data.String                    (IsString)
 import           Data.Text                      (Text)
@@ -19,6 +20,12 @@ import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
 
 newtype ConnectionName  = ConnectionName Text deriving (Show, Eq, IsString, Generic)
+
+objectWithoutNulls :: [Pair] -> Value
+objectWithoutNulls = object . Prelude.filter (not . isNull . snd)
+  where
+    isNull Null = True
+    isNull _    = False
 
 decodeJson :: FromJSON a => TypedData -> Maybe a
 decodeJson d =
@@ -37,6 +44,7 @@ getBytes td =
   td ^. maybe'data' >>= \case
     TypedData'Bytes v  -> Just v
     TypedData'Stream v -> Just v
+    TypedData'String v -> Just (Text.encodeUtf8 v)
     _                  -> Nothing
 
 infixl 3 <||>

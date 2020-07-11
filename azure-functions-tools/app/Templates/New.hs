@@ -28,7 +28,7 @@ import Data.Text (Text)
 -- * An output message type (relevant to the output binding type via 'OutBinding')
 function :: Function () HttpRequest () HttpResponse
 function = Function
-  { trigger  = HttpBinding                  -- What triggers the function
+  { trigger  = HttpTrigger Nothing [Get]    -- What triggers the function
   , inputs   = ()                           -- Input bindings
   , outputs  = HttpBinding                  -- Output bindings
   , initEnv  = pure ()                      -- A function to initialize the environment for a given function

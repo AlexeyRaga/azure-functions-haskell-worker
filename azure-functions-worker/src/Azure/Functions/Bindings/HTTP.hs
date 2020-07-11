@@ -6,21 +6,27 @@
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Azure.Functions.Bindings.HTTP
-( HttpRequest(..)
+( HttpMethod(..)
+, HttpRequest(..)
 , HttpResponse(..)
+, HttpTrigger(..)
 , HttpBinding(..)
 , module Azure.Functions.Bindings.Class
 )
 where
 
 import           Azure.Functions.Bindings.Class
+import           Azure.Functions.Bindings.Shared       (objectWithoutNulls)
 import           Azure.Functions.Internal.Lens         (toEither)
 import           Data.Aeson                            ((.=))
 import qualified Data.Aeson                            as Aeson
 import           Data.ByteString                       (ByteString)
+import qualified Data.List                             as List
 import qualified Data.Map                              as Map
 import           Data.Map.Strict                       (Map)
+import           Data.Maybe                            (fromMaybe)
 import           Data.ProtoLens.Runtime.Data.ProtoLens (defMessage)
+import           Data.String
 import           Data.Text                             (Text)
 import qualified Data.Text                             as Text
 import qualified Data.Text.Encoding                    as Text
@@ -31,7 +37,45 @@ import           Network.URI                           (URI, parseURI)
 import           Proto.FunctionRpc
 import           Proto.FunctionRpc_Fields
 
+data HttpMethod
+  = Get
+  | Put
+  | Post
+  | Delete
+  | Head
+  | HttpMethod Text
+  deriving (Eq, Show)
+
+instance IsString HttpMethod where
+  fromString = httpMethodFromText . Text.pack
+
+httpMethodToText :: HttpMethod -> Text
+httpMethodToText = \case
+  Get               -> "get"
+  Put               -> "put"
+  Post              -> "post"
+  Delete            -> "delete"
+  Head              -> "head"
+  HttpMethod other  -> other
+
+httpMethodFromText :: Text -> HttpMethod
+httpMethodFromText txt =
+  case Text.toLower txt of
+      "get"    -> Get
+      "put"    -> Put
+      "post"   -> Post
+      "delete" -> Delete
+      "head"   -> Head
+      other    -> HttpMethod other
+
+data HttpTrigger  = HttpTrigger
+  { httpRoute   :: Maybe Text
+  , httpMethods :: [HttpMethod]
+  } deriving (Show, Eq, Generic)
+
 data HttpBinding  = HttpBinding
+  {
+  } deriving (Show, Eq, Generic)
 
 data HttpRequest = HttpRequest
   { httpRequestMethod  :: Text
@@ -48,7 +92,7 @@ data HttpResponse = HttpResponse
   } deriving (Show, Eq, Generic)
 
 instance Trigger HttpRequest where
-  type TriggerBinding HttpRequest = HttpBinding
+  type TriggerBinding HttpRequest = HttpTrigger
   fromInvocationRequest req =
     req ^. triggerMetadata . at "$request" . toEither "Unable to find $request parameter"
         >>= view (maybe'http . toEither "Unexpected payload, RpcHttp is expected")
@@ -67,12 +111,17 @@ instance Output HttpResponse where
 
     in [defMessage & http .~ ht]
 
-instance ToTrigger HttpBinding where
-  toTriggerJSON _ = Aeson.object
+instance ToTrigger HttpTrigger where
+  toTriggerJSON a = objectWithoutNulls
         [ "type"      .= ("httpTrigger" :: Text)
         , "direction" .= ("in"          :: Text)
         , "name"      .= ("req"         :: Text)
+        , "route"     .= httpRoute a
+        , "methods"   .= nonEmpty (fmap httpMethodToText (httpMethods a))
         ]
+    where
+      nonEmpty as = if List.null as then Nothing else Just as
+
 
 instance ToOutBinding HttpBinding where
   toOutBindingJSON _ =
